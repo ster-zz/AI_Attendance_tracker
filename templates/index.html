@@ -2,173 +2,13 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Classroom System - Phase 2</title>
-    <!-- Simple minimal styling compliant with frontend guidelines -->
-    <style>
-        :root {
-            --primary-500: #3b82f6;
-            --primary-600: #2563eb;
-            --success: #10b981;
-            --error: #ef4444;
-            --warning: #f59e0b;
-            --neutral-100: #f3f4f6;
-            --neutral-200: #e5e7eb;
-            --neutral-300: #d1d5db;
-            --neutral-500: #6b7280;
-            --neutral-800: #1f2937;
-            --neutral-900: #111827;
-            --font-sans: 'Inter', system-ui, sans-serif;
-        }
-
-        body {
-            font-family: var(--font-sans);
-            background-color: var(--neutral-100);
-            color: var(--neutral-900);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-        }
-
-        .card {
-            background-color: white;
-            padding: 2.5rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            max-width: 450px;
-            width: 100%;
-        }
-
-        h1 {
-            color: var(--primary-600);
-            font-size: 1.5rem;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-
-        .status-container {
-            margin: 1.5rem 0;
-            padding: 1.5rem;
-            border-radius: 0.5rem;
-            border: 1px solid var(--neutral-200);
-            background-color: #fafafa;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-        }
-
-        .badge-active {
-            background-color: #ecfdf5;
-            color: var(--success);
-            border: 1px solid #a7f3d0;
-        }
-
-        .badge-inactive {
-            background-color: var(--neutral-100);
-            color: var(--neutral-500);
-            border: 1px solid var(--neutral-300);
-        }
-
-        .session-details {
-            font-size: 0.875rem;
-            color: var(--neutral-600);
-            text-align: left;
-            margin-top: 1rem;
-        }
-
-        .session-details p {
-            margin: 0.25rem 0;
-            display: flex;
-            justify-content: space-between;
-            border-bottom: 1px dashed var(--neutral-200);
-            padding-bottom: 0.25rem;
-        }
-
-        .session-details span {
-            font-weight: 500;
-            color: var(--neutral-900);
-        }
-
-        .actions {
-            display: flex;
-            gap: 1rem;
-            margin-top: 2rem;
-        }
-
-        button {
-            flex: 1;
-            padding: 0.75rem 1rem;
-            font-size: 1rem;
-            font-weight: 600;
-            border: none;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: all 0.2s ease-in-out;
-        }
-
-        .btn-start {
-            background-color: var(--primary-500);
-            color: white;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-        }
-
-        .btn-start:hover {
-            background-color: var(--primary-600);
-        }
-
-        .btn-end {
-            background-color: white;
-            color: var(--error);
-            border: 1px solid var(--error);
-        }
-
-        .btn-end:hover {
-            background-color: #fef2f2;
-        }
-
-        .btn-disabled {
-            background-color: var(--neutral-100);
-            color: var(--neutral-400);
-            border: 1px solid var(--neutral-200);
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-
-        /* Flash Messages */
-        .alerts {
-            margin-bottom: 1rem;
-        }
-
-        .alert {
-            padding: 0.75rem;
-            border-radius: 0.375rem;
-            font-size: 0.875rem;
-            margin-bottom: 0.5rem;
-            text-align: left;
-        }
-
-        .alert-success {
-            background-color: #ecfdf5;
-            color: #065f46;
-            border: 1px solid #a7f3d0;
-        }
-
-        .alert-error {
-            background-color: #fef2f2;
-            color: #991b1b;
-            border: 1px solid #fecaca;
-        }
-    </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Classroom Dashboard</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;1,9..40,400&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
     {% if session %}
     <!-- Auto refresh page every 10 seconds if session is active to update duration -->
     <meta http-equiv="refresh" content="10">
@@ -177,74 +17,158 @@
 
 <body>
 
-    <div class="card">
-        <h1>Smart Session Control</h1>
+    <!-- Background orbs -->
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
 
-        <!-- Flash Messages (Errors / Success notifications) -->
-        <div class="alerts">
+    <div class="app-wrapper">
+
+        <!-- Top Navigation -->
+        {% include 'partials/topbar.html' %}
+
+        <!-- Flash Alert -->
+        <div class="alerts" style="position: absolute; top: 60px; right: 20px; z-index: 200;">
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
             {% for category, message in messages %}
-            <div class="alert alert-{{ category }}">{{ message }}</div>
+            <div class="flash-bar"
+                style="border-radius: var(--radius-sm); box-shadow: var(--shadow-glass); {% if category == 'error' %}background: rgba(248,113,113,0.09); border-color: rgba(248,113,113,0.22); color: var(--clr-error);{% endif %}">
+                <span>{% if category == 'success' %}✓{% elif category == 'error' %}✖{% else %}!{% endif %}</span>
+                <span style="flex:1;">{{ message }}</span>
+                <button class="flash-dismiss" onclick="this.parentElement.remove()">✕ Dismiss</button>
+            </div>
             {% endfor %}
             {% endif %}
             {% endwith %}
         </div>
 
-        <!-- Session Status Panel -->
-        <div class="status-container">
-            {% if session %}
-            <div class="status-badge badge-active">🟢 ACTIVE</div>
-            <div class="session-details">
-                <p>Session ID: <span>#{{ session.session_id }}</span></p>
-                <p>Date: <span>{{ session.date }}</span></p>
-                <p>Start Time: <span>{{ session.start_time }}</span></p>
-                <p>Duration: <span>{{ session.duration }}</span></p>
-            </div>
-            {% else %}
-            <div class="status-badge badge-inactive">⚫ INACTIVE</div>
-            <div class="session-details">
-                <p style="text-align: center; border: none; color: var(--neutral-400);">
-                    Ready to start a new monitoring session.
-                </p>
-            </div>
-            {% endif %}
-        </div>
+        <!-- App Layout: Sidebar + Content Area -->
+        <div class="app-layout">
 
-        <!-- Actions -->
-        <div class="actions">
-            <!-- Start Session Form -->
-            <form action="{{ url_for('handle_start_session') }}" method="POST" style="flex: 1;">
-                <button type="submit" class="{% if session %}btn-disabled{% else %}btn-start{% endif %}" {% if session
-                    %}disabled{% endif %}>
-                    Start Session
-                </button>
-            </form>
+            <!-- Sidebar Navigation -->
+            {% include 'partials/sidebar.html' %}
 
-            <!-- End Session Form -->
-            <form action="{{ url_for('handle_end_session') }}" method="POST" style="flex: 1;">
-                <button type="submit" class="{% if not session %}btn-disabled{% else %}btn-end{% endif %}" {% if not
-                    session %}disabled{% endif %}>
-                    End Session
-                </button>
-            </form>
-        </div>
+            <!-- Content Area -->
+            <div class="content-area">
 
-        <!-- Face Recognition Trigger (Only visible during active session) -->
-        {% if session %}
-        <div style="margin-top: 1.5rem; border-top: 1px solid var(--neutral-200); padding-top: 1.5rem;">
-            <form action="{{ url_for('start_recognition_api') }}" method="POST">
-                <button type="submit" class="btn-start"
-                    style="width: 100%; background-color: var(--warning); color: #fff;">
-                    📷 Start Live Face Recognition
-                </button>
-            </form>
-            <p style="font-size: 0.75rem; color: var(--neutral-500); margin-top: 0.5rem;">
-                * Opens OpenCV camera window for live attendance marking.
-            </p>
-        </div>
-        {% endif %}
-    </div>
+                <!-- Page Body -->
+                <div class="page-body">
+
+                    <!-- ── KPI Row ── -->
+                    {% include 'partials/kpi_row.html' %}
+
+                    <!-- ── Middle Row ── -->
+                    <div class="mid-row">
+
+                        <!-- Session Control Panel -->
+                        <div class="panel cw">
+                            <div class="panel-hd">
+                                <div class="panel-title">🖥 Session Control</div>
+                                {% if session %}
+                                <div class="live-badge"><span class="live-dot"></span> Live Monitoring</div>
+                                {% endif %}
+                            </div>
+                            <div class="panel-body">
+
+                                <!-- Active session display -->
+                                <div class="session-display">
+                                    <div class="sdisplay-label">Currently Active</div>
+                                    {% if session %}
+                                    <div class="sdisplay-id">Session #{{ session.session_id }}</div>
+                                    <div class="sdisplay-meta">
+                                        <div class="sdisplay-meta-item"><strong>{{ session.date
+                                                }}</strong><span>Date</span></div>
+                                        <div class="sdisplay-meta-item"><strong>{{ session.start_time
+                                                }}</strong><span>Started</span></div>
+                                        <div class="sdisplay-meta-item"><strong>{{ session.duration
+                                                }}</strong><span>Elapsed</span></div>
+                                    </div>
+                                    {% else %}
+                                    <div class="sdisplay-id">No Session</div>
+                                    <div class="sdisplay-meta" style="opacity: 0.5;">
+                                        <span>System ready for next class monitor.</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Duration progress -->
+                                {% if session %}
+                                <div class="cw">
+                                    <div>
+                                        <div class="dur-labels">
+                                            <span>Session Progress</span>
+                                            <span>~45min / 90min typical</span>
+                                        </div>
+                                        <div class="dur-track">
+                                            <div class="dur-fill" style="width: 50%;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                <!-- Control buttons -->
+                                <div class="ctrl-row">
+                                    <form action="{{ url_for('handle_start_session') }}" method="POST">
+                                        <button type="submit"
+                                            class="ctrl-btn {% if session %}disabled{% else %}primary{% endif %}" {% if
+                                            session %}disabled{% endif %}>
+                                            ▶ Start Session
+                                        </button>
+                                    </form>
+
+                                    <form action="{{ url_for('handle_end_session') }}" method="POST">
+                                        <button type="submit"
+                                            class="ctrl-btn {% if not session %}disabled{% else %}danger{% endif %}" {%
+                                            if not session %}disabled{% endif %}>
+                                            ■ End Session
+                                        </button>
+                                    </form>
+                                </div>
+
+                                <!-- Face Recognition -->
+                                {% if session %}
+                                <div class="cam-section cw">
+                                    <div class="cam-hd">
+                                        📷 Face Recognition Module
+                                        <span class="cam-badge">OpenCV</span>
+                                    </div>
+                                    <div class="cam-preview">[ External OpenCV Window ]</div>
+                                    <div class="cam-footer">
+                                        <form action="{{ url_for('start_recognition_api') }}" method="POST"
+                                            style="width: 100%;">
+                                            <button type="submit" class="cam-btn" style="width: 100%;">📷 Start Live
+                                                Recognition</button>
+                                        </form>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                            </div>
+                        </div><!-- /Session panel -->
+
+                        <!-- Activity Feed -->
+                        {% include 'partials/activity_feed.html' %}
+
+                    </div><!-- /mid-row -->
+
+                    <!-- ── Bottom Row ── -->
+                    <div class="bot-row">
+
+                        <!-- Attendance Table -->
+                        {% include 'partials/attendance_table.html' %}
+
+                        <!-- Weekly Chart -->
+                        {% include 'partials/attendance_chart.html' %}
+
+                    </div><!-- /bot-row -->
+
+                </div><!-- /page-body -->
+
+            </div><!-- /content-area -->
+        </div><!-- /app-layout -->
+
+    </div><!-- /app-wrapper -->
 
 </body>
 

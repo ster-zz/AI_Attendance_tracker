@@ -1,0 +1,35 @@
+<div>
+    <div class="sec-title">Live Overview</div>
+    <div class="kpi-row">
+        <div class="kpi-card">
+            <div class="kpi-icon">📡</div>
+            <div class="kpi-value {% if session %}active-val{% endif %}">
+                {% if session %}● Session Active{% else %}Inactive{% endif %}
+            </div>
+            <div class="kpi-label">Status</div>
+            <div class="kpi-chip">
+                {% if session %}Session #{{ session.session_id }} running{% else %}Ready{% endif %}
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">⏱</div>
+            <div class="kpi-value">{% if session %}{{ session.duration }}{% else %}0m{% endif %}</div>
+            <div class="kpi-label">Current Duration</div>
+            <div class="kpi-chip">
+                {% if session %}Started {{ session.start_time }}{% else %}Not started{% endif %}
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">👤</div>
+            <div class="kpi-value">24</div>
+            <div class="kpi-label">Students Recognized</div>
+            <div class="kpi-chip">89% attendance rate</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">📋</div>
+            <div class="kpi-value">3</div>
+            <div class="kpi-label">Sessions Today</div>
+            <div class="kpi-chip">↑ 1 vs yesterday</div>
+        </div>
+    </div>
+</div>

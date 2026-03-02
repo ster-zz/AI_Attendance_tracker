@@ -1,0 +1,38 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# SQLite databases
+*.db
+*.sqlite3
+
+# Flask session
+.webassets-cache
+
+# Encodings / Large Data files
+data/encodings.pkl
+
+# Ignore student images (optional, comment out if you want them pushed)
+data/student_images/*
+!data/student_images/.gitkeep
+
+# Ignore incident images
+static/incident_images/*
+!static/incident_images/.gitkeep
+
+reports/*
+!reports/.gitkeep
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo

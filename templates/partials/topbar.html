@@ -1,26 +1,56 @@
-<header class="flex items-center justify-between mb-8">
-    <div class="max-w-md w-full relative">
-        <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-        <input
-            class="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none bg-white shadow-sm"
-            placeholder="Search for students, classes..." type="text" />
+<header class="flex justify-between items-center bg-vanilla-light/40 p-4 rounded-2xl border border-yale-blue/10">
+    <div class="flex items-center gap-8">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight flex items-center gap-3 text-yale-blue">
+                <span class="p-1.5 interactive-gradient rounded">AI</span> CLASSROOM
+            </h1>
+            <div class="flex items-center gap-2 text-[10px] font-display text-yale-blue mt-1">
+                <span class="inline-block w-2 h-2 bg-yale-blue rounded-full animate-pulse"></span>
+                SYSTEM STATUS: {% if session %}SESSION {{ session.session_id }}{% else %}OFFLINE{% endif %}
+            </div>
+        </div>
+
+        <nav class="hidden lg:flex items-center gap-6 ml-4 flex-1">
+            <a class="flex items-center gap-2 font-display text-xs font-bold uppercase transition-colors {% if active_page == 'dashboard' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
+                href="{{ url_for('index') }}">
+                <span class="material-symbols-outlined text-lg">dashboard</span> Dashboard
+            </a>
+            <a class="flex items-center gap-2 font-display text-xs font-bold uppercase transition-colors {% if active_page == 'live' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
+                href="{{ url_for('live_camera_page') }}">
+                <span class="material-symbols-outlined text-lg">videocam</span> Live Camera
+            </a>
+            <a class="flex items-center gap-2 font-display text-xs font-bold uppercase transition-colors {% if active_page == 'upload' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
+                href="{{ url_for('video_upload_page') }}">
+                <span class="material-symbols-outlined text-lg">cloud_upload</span> Upload
+            </a>
+            <a class="flex items-center gap-2 font-display text-xs font-bold uppercase transition-colors {% if active_page == 'students' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
+                href="{{ url_for('student_directory_page') }}">
+                <span class="material-symbols-outlined text-lg">group</span> Directory
+            </a>
+            <a class="flex items-center gap-2 font-display text-xs font-bold uppercase transition-colors {% if active_page == 'reports' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
+                href="{{ url_for('reports_page') }}">
+                <span class="material-symbols-outlined text-lg">assessment</span> Reports
+            </a>
+        </nav>
     </div>
 
-    <div class="flex items-center gap-6">
-        <button
-            class="relative p-2 text-slate-500 hover:bg-white rounded-full transition-colors shadow-sm bg-white/50 hover:shadow-md">
-            <span class="material-symbols-outlined">notifications</span>
-            <span class="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full border-2 border-white"></span>
-        </button>
+    <div class="flex items-center gap-10 ml-20">
+        <div class="relative">
+            <span
+                class="material-symbols-outlined text-black/40 absolute left-3 top-1/2 -translate-y-1/2 text-sm">search</span>
+            <input
+                class="bg-vanilla-moonstone/50 border border-yale-blue/10 rounded-full text-xs font-display w-64 pl-10 focus:ring-1 focus:ring-yale-blue text-black placeholder:text-black/30"
+                placeholder="QUERY DATABASE..." type="text" />
+        </div>
 
-        <div class="flex items-center gap-3 border-l pl-6 border-slate-200">
+        <div class="flex items-center gap-4 border-l border-yale-blue/10 pl-6">
             <div class="text-right">
-                <p class="text-sm font-bold text-secondary">System Admin</p>
-                <p class="text-xs text-slate-500">Classroom Control</p>
+                <p class="text-xs font-display font-bold text-black">DR. SARAH WILSON</p>
+                <p class="text-[10px] text-yale-blue font-bold">ADMINISTRATOR</p>
             </div>
-            <div
-                class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold border-2 border-primary shadow-sm">
-                AD
+            <div class="size-10 rounded-full overflow-hidden border-2 border-yale-blue">
+                <img class="w-full h-full object-cover"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAbfHnsKshx5cyQ_s1mKGVQsJsUMoRa9Ebvcf-wMDy7Y8Me5w-zNF6xGHj4oxnwo8wyEqcBrFGKHyGyEHmCuB6ax3cuxtjmE0Z27uP9T9TmoaoOy-rRTad43nGsdKr6MDy97EbZRdBl28Z2aSm9RMlq4_wJfuI1gAIPUqd43X0F8SXYVDMp2QEpXTQuC3RjLJl3Q6-nLc5-fZ-JhDKGnrRvRuhDW0ex0nqcMdsrYeqWEPbXhHONrZflVcjbYU94gj67rc-XehFFrg" />
             </div>
         </div>
     </div>

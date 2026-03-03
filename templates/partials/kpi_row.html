@@ -1,53 +1,41 @@
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-
-    <div
-        class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between transition-transform hover:-translate-y-1 hover:border-primary/30">
-        <div class="flex items-center justify-between mb-4">
-            <span class="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">groups</span>
-            <span class="text-emerald-500 text-sm font-bold">Total</span>
-        </div>
-        <div>
-            <p class="text-slate-500 text-sm font-medium">Total Students</p>
-            <h3 class="text-2xl font-bold text-secondary">{{ kpis.total }}</h3>
-        </div>
+<div class="serene-card p-5">
+    <p class="text-[10px] font-display text-black/50 font-bold mb-1">TOTAL STUDENTS</p>
+    <div class="flex items-end justify-between">
+        <h3 class="text-4xl font-bold text-yale-blue">{{ kpis.total }}</h3>
+        <span class="text-[10px] bg-yale-blue text-white px-2 py-0.5 rounded-full font-bold">TOTAL</span>
     </div>
-
-    <div
-        class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between transition-transform hover:-translate-y-1 hover:border-secondary/30">
-        <div class="flex items-center justify-between mb-4">
-            <span class="material-symbols-outlined text-secondary bg-secondary/10 p-2 rounded-lg">person_check</span>
-            <span class="text-emerald-500 text-sm font-bold">{{ kpis.present_percentage }}%</span>
-        </div>
-        <div>
-            <p class="text-slate-500 text-sm font-medium">Present Today</p>
-            <h3 class="text-2xl font-bold text-secondary">{{ kpis.present }}</h3>
-        </div>
+    <div class="mt-4 bg-yale-blue/10 h-1.5 rounded-full overflow-hidden">
+        <div class="bg-yale-blue h-full" style="width: 100%"></div>
     </div>
+</div>
 
-    <div
-        class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between transition-transform hover:-translate-y-1 hover:border-orange-500/30">
-        <div class="flex items-center justify-between mb-4">
-            <span class="material-symbols-outlined text-orange-500 bg-orange-100 p-2 rounded-lg">person_off</span>
-            <span class="text-orange-500 text-sm font-bold">{{ kpis.absent_percentage }}%</span>
-        </div>
-        <div>
-            <p class="text-slate-500 text-sm font-medium">Absent</p>
-            <h3 class="text-2xl font-bold text-secondary">{{ kpis.absent }}</h3>
-        </div>
+<div class="serene-card p-5">
+    <p class="text-[10px] font-display text-black/50 font-bold mb-1">PRESENT TODAY</p>
+    <div class="flex items-end justify-between">
+        <h3 class="text-4xl font-bold text-black">{{ kpis.present }}</h3>
+        <span class="text-[10px] text-yale-blue font-bold">{{ kpis.present_percentage }}%</span>
     </div>
-
-    <div
-        class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between transition-transform hover:-translate-y-1 hover:border-slate-300">
-        <div class="flex items-center justify-between mb-4">
-            <span class="material-symbols-outlined text-slate-500 bg-slate-100 p-2 rounded-lg">calendar_today</span>
-            <span class="text-slate-500 text-sm font-bold">{% if session %}LIVE{% else %}Ready{% endif %}</span>
-        </div>
-        <div>
-            <p class="text-slate-500 text-sm font-medium">{% if session %}Session {{ session.session_id }}{% else
-                %}Today's Date{% endif %}</p>
-            <h3 class="text-lg font-bold text-secondary">{% if session %}{{ session.date }}{% else %}October 24, 2026{%
-                endif %}</h3>
-        </div>
+    <div class="mt-4 bg-yale-blue/10 h-1.5 rounded-full overflow-hidden">
+        <div class="interactive-gradient h-full" style="width: {{ kpis.present_percentage }}%"></div>
     </div>
+</div>
 
+<div class="serene-card p-5">
+    <p class="text-[10px] font-display text-black/50 font-bold mb-1">ABSENT</p>
+    <div class="flex items-end justify-between">
+        <h3 class="text-4xl font-bold text-yale-blue">{{ kpis.absent }}</h3>
+        <span class="text-[10px] text-yale-blue/60 font-bold">{{ kpis.absent_percentage }}%</span>
+    </div>
+    <div class="mt-4 bg-yale-blue/10 h-1.5 rounded-full overflow-hidden">
+        <div class="bg-yale-blue h-full" style="width: {{ kpis.absent_percentage }}%"></div>
+    </div>
+</div>
+
+<div class="serene-card p-5">
+    <p class="text-[10px] font-display text-black/50 font-bold mb-1">{% if session %}SESSION {{ session.session_id }}{%
+        else %}CURRENT DATE & TIME{% endif %}</p>
+    <div class="flex items-end justify-between">
+        <h3 class="text-2xl font-bold text-black">{% if session %}{{ session.date }}{% else %}READY{% endif %}</h3>
+        <span class="text-[10px] text-yale-blue font-bold">{% if session %}LIVE{% else %}OFFLINE{% endif %}</span>
+    </div>
 </div>

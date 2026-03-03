@@ -2,45 +2,59 @@
     <span class="material-symbols-outlined text-primary">history</span>
     Recent Detections
 </h2>
-<div class="space-y-4 flex-1 overflow-y-auto pr-2">
+<div class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3">
 
     {% for log in recent_activity %}
     <div
-        class="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 shadow-sm">
+        class="flex items-center gap-3 p-3 {% if log.status == 'Present' %}bg-vanilla-moonstone/20 border-yale-blue/5{% elif log.status == 'Late' %}bg-vanilla-moonstone/20 border-yale-blue/5{% else %}bg-yale-blue/5 border-yale-blue{% endif %} border rounded-lg hover:border-yale-blue/30 transition-all">
         <div
-            class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 shadow-sm text-lg font-bold text-slate-400">
+            class="size-10 rounded-full border border-yale-blue/20 overflow-hidden bg-vanilla-moonstone/50 flex items-center justify-center font-bold text-yale-blue">
             {{ log.name[0] }}
         </div>
-        <div class="flex-1">
-            <p class="text-sm font-bold text-secondary">{{ log.name }}</p>
-            <p class="text-xs text-slate-500">{{ log.time }}</p>
+        <div class="flex-1 min-w-0">
+            <p
+                class="text-xs font-bold truncate {% if log.status == 'Absent' %}text-yale-blue{% else %}text-black{% endif %}">
+                {{ log.name }}</p>
+            <p
+                class="text-[9px] {% if log.status == 'Absent' %}text-yale-blue/60 font-bold uppercase{% else %}text-black/40{% endif %}">
+                {% if log.status == 'Absent' %}NON-REGISTERED{% else %}ID: {{ log.student_id | default('UNKNOWN') }}{%
+                endif %}
+            </p>
         </div>
-        <div
-            class="flex items-center gap-1.5 px-3 py-1 rounded-full {% if log.status == 'Present' %}bg-emerald-100 text-emerald-700{% else %}bg-slate-100 text-slate-700{% endif %} text-xs font-bold">
+        <div class="text-right">
+            {% if log.status == 'Present' %}
+            <span class="text-[8px] interactive-gradient px-1.5 py-0.5 rounded font-bold">VERIFIED</span>
+            {% elif log.status == 'Late' %}
             <span
-                class="w-1.5 h-1.5 rounded-full {% if log.status == 'Present' %}bg-emerald-500{% else %}bg-slate-500{% endif %}"></span>
-            {{ log.status }}
+                class="text-[8px] bg-vanilla-moonstone border border-yale-blue/30 text-yale-blue px-1.5 py-0.5 rounded font-bold">LATE
+                ENTRY</span>
+            {% else %}
+            <span class="text-[8px] bg-yale-blue text-white px-1.5 py-0.5 rounded font-bold">ALERT</span>
+            {% endif %}
+            <p
+                class="text-[8px] {% if log.status == 'Absent' %}text-yale-blue/60 font-bold{% else %}text-black/40{% endif %} mt-1 uppercase">
+                {{ log.time }}</p>
         </div>
     </div>
     {% endfor %}
 
     <!-- Wait State -->
-    {% if session %}
+    {% if session and not recent_activity %}
     <div
-        class="flex items-center gap-4 p-3 rounded-xl bg-slate-50/50 border border-transparent opacity-70 animate-pulse">
-        <div class="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center">
-            <span class="material-symbols-outlined text-slate-400">person</span>
+        class="flex items-center gap-3 p-3 bg-vanilla-moonstone/10 border border-yale-blue/5 rounded-lg opacity-70 animate-pulse">
+        <div class="size-10 rounded-full bg-vanilla-moonstone/50 flex items-center justify-center">
+            <span class="material-symbols-outlined text-yale-blue/50">person</span>
         </div>
         <div class="flex-1">
-            <p class="text-sm font-bold text-slate-500">Scanning in progress...</p>
-            <p class="text-xs text-slate-400">Waiting for next entry</p>
+            <p class="text-xs font-bold text-black/60">Scanning...</p>
+            <p class="text-[9px] text-black/40">Waiting for next entry</p>
         </div>
     </div>
-    {% else %}
-    <div class="flex flex-col items-center justify-center py-6 text-center opacity-60">
-        <span class="material-symbols-outlined text-slate-300 text-4xl mb-2">history_toggle_off</span>
-        <p class="text-sm font-bold text-slate-500">No detections</p>
-        <p class="text-xs text-slate-400">Start a session to capture logs.</p>
+    {% elif not session %}
+    <div class="flex flex-col items-center justify-center py-8 text-center opacity-60">
+        <span class="material-symbols-outlined text-yale-blue/40 text-4xl mb-2">history_toggle_off</span>
+        <p class="text-xs font-bold text-yale-blue/60">No detections</p>
+        <p class="text-[10px] text-black/40 mt-1">Start a session to capture logs.</p>
     </div>
     {% endif %}
 

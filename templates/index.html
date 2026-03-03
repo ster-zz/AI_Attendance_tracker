@@ -4,36 +4,58 @@
 <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>AI Classroom Attendance Dashboard</title>
+    <title>AI Classroom | Serene Analytical Hub</title>
 
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&display=swap"
+    <link
+        href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap"
         rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         rel="stylesheet" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 
     <script id="tailwind-config">
         tailwind.config = {
-            darkMode: "class",
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#4C9DB0",
-                        "secondary": "#0D3B66",
-                        "accent": "#FFEBAF",
-                        "background-light": "#f6f7f8",
-                        "background-dark": "#141c1e",
+                        "vanilla-moonstone": "#E6E2D3",
+                        "vanilla-light": "#F2F0E9",
+                        "yale-blue": "#00356B",
+                        "yale-blue-dark": "#002347",
                     },
                     fontFamily: {
-                        "display": ["Inter"]
-                    },
-                    borderRadius: { "DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px" },
+                        "display": ["Oxanium", "sans-serif"],
+                        "body": ["Inter", "sans-serif"]
+                    }
                 },
             },
         }
     </script>
+    <style type="text/tailwindcss">
+        @layer base {
+            body {
+                @apply bg-gradient-to-br from-vanilla-moonstone via-vanilla-light to-vanilla-moonstone text-black font-body min-h-screen;
+            }
+            h1, h2, h3, .data-label {
+                @apply font-display uppercase tracking-wider;
+            }
+        }
+        .serene-card {
+            @apply bg-vanilla-light/80 border border-yale-blue/20 rounded-xl shadow-sm backdrop-blur-sm;
+        }
+        .interactive-gradient {
+            @apply bg-gradient-to-r from-yale-blue to-yale-blue-dark text-white;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            @apply bg-vanilla-moonstone;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            @apply bg-yale-blue/30 rounded-full hover:bg-yale-blue/50 transition-colors;
+        }
+    </style>
 
     {% if session %}
     <!-- Auto refresh page every 10 seconds if session is active to update duration -->
@@ -41,129 +63,133 @@
     {% endif %}
 </head>
 
-<body class="text-slate-900 font-display" style="background-color: #FFEBAF;">
-    <div class="flex min-h-screen">
+<body class="p-6">
+    <div class="max-w-[1600px] mx-auto flex flex-col gap-6">
 
-        <!-- Sidebar Navigation -->
-        {% include 'partials/sidebar.html' %}
+        <!-- Header / Topbar Navigation -->
+        {% include 'partials/topbar.html' %}
 
-        <!-- Main Content Area -->
-        <main class="flex-1 ml-64 p-8 bg-[#FFEBAF]">
-
-            <!-- Header -->
-            {% include 'partials/topbar.html' %}
-
-            <!-- Flash Alert -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-            <div class="mb-6 space-y-2">
-                {% for category, message in messages %}
-                <div
-                    class="p-4 rounded-xl flex items-center gap-3 {% if category == 'error' %}bg-red-50 text-red-600 border border-red-100{% else %}bg-emerald-50 text-emerald-600 border border-emerald-100{% endif %}">
-                    <span class="material-symbols-outlined">{% if category == 'success' %}check_circle{% elif category
-                        == 'error' %}error{% else %}info{% endif %}</span>
-                    <span class="flex-1 font-medium">{{ message }}</span>
-                    <button class="opacity-60 hover:opacity-100 transition-opacity"
-                        onclick="this.parentElement.remove()">
-                        <span class="material-symbols-outlined text-sm">close</span>
-                    </button>
-                </div>
-                {% endfor %}
+        <!-- Flash Alert -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="space-y-2">
+            {% for category, message in messages %}
+            <div
+                class="p-4 rounded-xl flex items-center gap-3 serene-card border {% if category == 'error' %}bg-red-50 text-red-600 border-red-200{% else %}bg-vanilla-light/80 text-yale-blue border-yale-blue/30{% endif %}">
+                <span class="material-symbols-outlined">{% if category == 'success' %}check_circle{% elif category
+                    == 'error' %}error{% else %}info{% endif %}</span>
+                <span class="flex-1 font-medium font-body text-sm">{{ message }}</span>
+                <button class="opacity-60 hover:opacity-100 transition-opacity" onclick="this.parentElement.remove()">
+                    <span class="material-symbols-outlined text-sm">close</span>
+                </button>
             </div>
-            {% endif %}
-            {% endwith %}
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
 
-            <!-- KPI Statistics -->
-            {% include 'partials/kpi_row.html' %}
+        <main class="grid grid-cols-12 gap-6">
+            <!-- KPI Statistics (Left Column) -->
+            <div class="col-span-3 space-y-4">
+                {% include 'partials/kpi_row.html' %}
+            </div>
 
-            <!-- Dashboard Grid -->
-            <div class="grid grid-cols-1 lg:grid-cols-10 gap-8 mb-8">
-
-                <!-- Live Camera Feed & Session Control (60%) -->
-                <div class="lg:col-span-6 bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-lg font-bold text-secondary flex items-center gap-2">
-                            <span
-                                class="material-symbols-outlined {% if session %}text-emerald-500{% else %}text-red-500{% endif %}">videocam</span>
-                            Live AI Camera Feed
+            <!-- Live Camera Feed (Middle Column) -->
+            <div class="col-span-6">
+                <div class="serene-card h-full flex flex-col overflow-hidden">
+                    <div
+                        class="p-4 border-b border-yale-blue/10 flex justify-between items-center bg-vanilla-moonstone/30">
+                        <h2 class="text-xs font-display font-bold text-yale-blue flex items-center gap-2">
+                            <span class="material-symbols-outlined text-sm">videocam</span> LIVE CAMERA FEED
                         </h2>
+
                         {% if session %}
                         <span
-                            class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"><span
-                                class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-[pulse_1.5s_infinite]"></span>Session
+                            class="text-[10px] px-2 py-0.5 interactive-gradient rounded font-bold animate-pulse">SESSION
                             {{ session.session_id }}</span>
                         {% else %}
-                        <span
-                            class="px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-xs font-bold uppercase tracking-wider">Offline</span>
+                        <span class="text-[10px] px-2 py-0.5 bg-yale-blue text-white rounded font-bold">OFFLINE</span>
                         {% endif %}
                     </div>
 
-                    <div class="relative aspect-video rounded-xl bg-slate-900 overflow-hidden group flex-1">
+                    <div class="flex-1 flex items-center justify-center p-8 relative">
+
                         {% if session %}
                         <!-- Session is active -->
                         <div
-                            class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-t from-slate-900/80 to-transparent">
-                            <h3 class="text-white font-bold text-xl mb-4">Tracking Active</h3>
-
-                            <form action="{{ url_for('start_recognition_api') }}" method="POST" class="mb-6">
+                            class="text-center serene-card p-10 border-2 border-dashed border-yale-blue/20 max-w-lg w-full">
+                            <h3 class="text-2xl font-bold mb-4 text-yale-blue">Tracking Active</h3>
+                            <form action="{{ url_for('start_recognition_api') }}" method="POST" class="mb-4">
                                 <button type="submit"
-                                    class="bg-primary hover:bg-primary/90 text-white px-8 py-3 rounded-full font-bold flex items-center gap-2 transition-all shadow-lg shadow-primary/20">
+                                    class="interactive-gradient px-8 py-3 rounded-lg font-display font-bold text-sm hover:shadow-lg hover:shadow-yale-blue/20 transition-all flex items-center justify-center gap-3 mx-auto w-full">
                                     <span class="material-symbols-outlined text-sm">face</span>
-                                    Open Camera Window
+                                    OPEN CAMERA WINDOW
                                 </button>
                             </form>
-
                             <form action="{{ url_for('handle_end_session') }}" method="POST">
                                 <button type="submit"
-                                    class="bg-red-500/20 hover:bg-red-500/40 text-red-500 border border-red-500/30 px-6 py-2 rounded-full font-bold flex items-center gap-2 transition-all">
+                                    class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-8 py-3 rounded-lg font-display font-bold text-sm transition-all flex items-center justify-center gap-3 mx-auto w-full">
                                     <span class="material-symbols-outlined text-sm">stop</span>
-                                    End Session
+                                    END SESSION
                                 </button>
                             </form>
                         </div>
                         <div
-                            class="absolute top-4 left-4 bg-emerald-900/80 backdrop-blur text-emerald-400 px-3 py-1 rounded-full text-xs font-mono border border-emerald-500/30">
+                            class="absolute top-4 left-4 bg-vanilla-moonstone/80 text-yale-blue font-bold px-3 py-1 rounded text-xs border border-yale-blue/20">
                             LIVE | {{ session.duration }}
                         </div>
+
                         {% else %}
                         <!-- Session is NOT active -->
-                        <div
-                            class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-t from-slate-900 to-transparent">
+                        <div class="text-center serene-card p-10 border-2 border-dashed border-yale-blue/20 max-w-lg">
                             <div
-                                class="w-20 h-20 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center mb-4">
-                                <span class="material-symbols-outlined text-white text-4xl">videocam_off</span>
+                                class="size-24 bg-yale-blue/5 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <span class="material-symbols-outlined text-yale-blue text-5xl">videocam_off</span>
                             </div>
-                            <h3 class="text-white font-bold text-xl mb-2">Camera Feed Offline</h3>
-                            <p class="text-white/60 text-sm mb-6 text-center px-8">Start a new session to begin
-                                automated attendance tracking.</p>
+                            <h2 class="text-2xl font-bold mb-3 text-yale-blue">Camera Feed Offline</h2>
+                            <p class="text-black/60 text-sm mb-8 leading-relaxed">Start a new session to begin automated
+                                attendance tracking.</p>
 
                             <form action="{{ url_for('handle_start_session') }}" method="POST">
                                 <button type="submit"
-                                    class="bg-primary hover:bg-primary/90 text-white px-8 py-3 rounded-full font-bold flex items-center gap-2 transition-all shadow-lg shadow-primary/20">
+                                    class="interactive-gradient px-8 py-3 rounded-lg font-display font-bold text-sm hover:shadow-lg hover:shadow-yale-blue/20 transition-all flex items-center gap-3 mx-auto">
                                     <span class="material-symbols-outlined text-sm">play_arrow</span>
-                                    Start Session
+                                    START SESSION
                                 </button>
                             </form>
                         </div>
                         <div
-                            class="absolute top-4 left-4 bg-slate-800/80 backdrop-blur text-white px-3 py-1 rounded-full text-xs font-mono">
+                            class="absolute top-4 left-4 bg-vanilla-moonstone/50 text-black/40 px-3 py-1 rounded text-xs border border-yale-blue/10">
                             0.0 FPS | NO SIGNAL
                         </div>
                         {% endif %}
+
                     </div>
                 </div>
-
-                <!-- Recent Detections (40%) -->
-                <div class="lg:col-span-4 bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col">
-                    {% include 'partials/activity_feed.html' %}
-                </div>
-
             </div>
 
-            <!-- Attendance Table -->
-            {% include 'partials/attendance_table.html' %}
-
+            <!-- Recent Detections (Right Column) -->
+            <div class="col-span-3">
+                <div class="serene-card flex flex-col h-full overflow-hidden">
+                    <div
+                        class="p-4 border-b border-yale-blue/10 flex justify-between items-center bg-vanilla-moonstone/30">
+                        <h2 class="text-xs font-display font-bold text-yale-blue">RECENT DETECTIONS</h2>
+                        <button class="text-[10px] text-yale-blue font-bold hover:underline">VIEW ALL</button>
+                    </div>
+                    {% include 'partials/activity_feed.html' %}
+                </div>
+            </div>
         </main>
+
+        <!-- Attendance Table -->
+        {% include 'partials/attendance_table.html' %}
+
+        <footer
+            class="flex justify-between items-center text-[9px] text-black/40 font-display uppercase tracking-widest px-4 mt-2">
+            <p>© 2024 AI CLASSROOM ATTENDANCE SYSTEM. ALL DETECTION NODES SECURED.</p>
+            <p>LATENCY: 14MS | ENCRYPTION: AES-256</p>
+        </footer>
+
     </div>
 </body>
 

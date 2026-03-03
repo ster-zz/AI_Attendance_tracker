@@ -221,29 +221,41 @@ def sync_students_from_images():
 
 def get_dashboard_kpis():
     """
-    Calculates KPI stats for the Dashboard UI.
-    Includes: total students, present today, absent today.
+    Calculates KPI stats for the Dashboard UI based on the ACTIVE session.
+    If no session is active, returns 0 for present and total absent.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    today_str = datetime.now().strftime('%Y-%m-%d')
     
     # 1. Total Students
     cursor.execute('SELECT COUNT(id) as total FROM Students')
     total_students = cursor.fetchone()['total'] or 0
     
-    # 2. Present Today 
-    # Must join Attendance and Sessions to check for today's date
+    # Check if a session is active
+    cursor.execute('SELECT session_id FROM Sessions WHERE active = 1 ORDER BY session_id DESC LIMIT 1')
+    active_session_row = cursor.fetchone()
+    
+    if not active_session_row:
+        conn.close()
+        return {
+            "total": total_students,
+            "present": 0,
+            "absent": total_students,
+            "present_percentage": 0,
+            "absent_percentage": 100 if total_students > 0 else 0
+        }
+        
+    active_session_id = active_session_row['session_id']
+    
+    # 2. Present in the ACTIVE session
     cursor.execute('''
         SELECT COUNT(DISTINCT a.student_id) as present
         FROM Attendance a
-        JOIN Sessions s ON a.session_id = s.session_id
-        WHERE s.date = ? AND a.status = 'Present'
-    ''', (today_str,))
+        WHERE a.session_id = ? AND a.status = 'Present'
+    ''', (active_session_id,))
     present_today = cursor.fetchone()['present'] or 0
     
-    # 3. Absent Today
+    # 3. Absent in the ACTIVE session
     absent_today = total_students - present_today
     
     # Calculate percentage safely
@@ -266,19 +278,28 @@ def get_dashboard_kpis():
 
 def get_recent_activity(limit=5):
     """
-    Fetches the most recent live face detections spanning all sessions.
+    Fetches the most recent live face detections for the currently active session.
     Used for the 'Activity Feed' panel.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
+    
+    cursor.execute('SELECT session_id FROM Sessions WHERE active = 1 ORDER BY session_id DESC LIMIT 1')
+    active_session_row = cursor.fetchone()
+    
+    if not active_session_row:
+        conn.close()
+        return []
+        
     cursor.execute('''
         SELECT s.name, a.timestamp, a.status, sess.date
         FROM Attendance a
         JOIN Students s ON a.student_id = s.id
         JOIN Sessions sess ON a.session_id = sess.session_id
+        WHERE a.session_id = ?
         ORDER BY a.id DESC
         LIMIT ?
-    ''', (limit,))
+    ''', (active_session_row['session_id'], limit))
     
     rows = cursor.fetchall()
     conn.close()
@@ -296,25 +317,30 @@ def get_recent_activity(limit=5):
 
 def get_daily_attendance_log():
     """
-    Fetches all attendance records for the current day.
-    Used for the big 'Daily Attendance Log' table.
+    Fetches all attendance records for the active session.
+    If no session is active, returns an empty list.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    today_str = datetime.now().strftime('%Y-%m-%d')
+    cursor.execute('SELECT session_id FROM Sessions WHERE active = 1 ORDER BY session_id DESC LIMIT 1')
+    active_session_row = cursor.fetchone()
+    
+    if not active_session_row:
+        conn.close()
+        return []
+        
+    active_session_id = active_session_row['session_id']
     
     # Group by student_id to show only the first time they were marked today, or just list all logs.
-    # Grouping by highest ID (most recent) or Min time (first arrived). Let's use MIN time.
     cursor.execute('''
-        SELECT st.id as student_id, st.name, MIN(a.timestamp) as time_in, a.status, s.date
+        SELECT st.id as student_id, st.name, MIN(a.timestamp) as time_in, a.status
         FROM Attendance a
         JOIN Students st ON a.student_id = st.id
-        JOIN Sessions s ON a.session_id = s.session_id
-        WHERE s.date = ?
+        WHERE a.session_id = ?
         GROUP BY st.id
         ORDER BY time_in DESC
-    ''', (today_str,))
+    ''', (active_session_id,))
     
     rows = cursor.fetchall()
     

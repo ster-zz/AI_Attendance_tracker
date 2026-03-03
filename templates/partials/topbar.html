@@ -15,10 +15,6 @@
                 href="{{ url_for('index') }}">
                 <span class="material-symbols-outlined text-lg">dashboard</span> Dashboard
             </a>
-            <a class="flex items-center gap-2 font-display text-xs font-bold uppercase transition-colors {% if active_page == 'live' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
-                href="{{ url_for('live_camera_page') }}">
-                <span class="material-symbols-outlined text-lg">videocam</span> Live Camera
-            </a>
             <a class="flex items-center gap-2 font-display text-xs font-bold uppercase transition-colors {% if active_page == 'upload' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
                 href="{{ url_for('video_upload_page') }}">
                 <span class="material-symbols-outlined text-lg">cloud_upload</span> Upload

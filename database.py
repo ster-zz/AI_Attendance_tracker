@@ -1,6 +1,7 @@
 import sqlite3
 import os
 from config import DATABASE_PATH
+from datetime import datetime
 
 def get_db_connection():
     """
@@ -216,3 +217,138 @@ def sync_students_from_images():
         
     conn.close()
 
+# ----------------- DASHBOARD UI STATS FUNCTIONS -----------------
+
+def get_dashboard_kpis():
+    """
+    Calculates KPI stats for the Dashboard UI.
+    Includes: total students, present today, absent today.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    
+    # 1. Total Students
+    cursor.execute('SELECT COUNT(id) as total FROM Students')
+    total_students = cursor.fetchone()['total'] or 0
+    
+    # 2. Present Today 
+    # Must join Attendance and Sessions to check for today's date
+    cursor.execute('''
+        SELECT COUNT(DISTINCT a.student_id) as present
+        FROM Attendance a
+        JOIN Sessions s ON a.session_id = s.session_id
+        WHERE s.date = ? AND a.status = 'Present'
+    ''', (today_str,))
+    present_today = cursor.fetchone()['present'] or 0
+    
+    # 3. Absent Today
+    absent_today = total_students - present_today
+    
+    # Calculate percentage safely
+    if total_students > 0:
+        present_percentage = int((present_today / total_students) * 100)
+        absent_percentage = int((absent_today / total_students) * 100)
+    else:
+        present_percentage = 0
+        absent_percentage = 0
+        
+    conn.close()
+    
+    return {
+        "total": total_students,
+        "present": present_today,
+        "absent": absent_today,
+        "present_percentage": present_percentage,
+        "absent_percentage": absent_percentage
+    }
+
+def get_recent_activity(limit=5):
+    """
+    Fetches the most recent live face detections spanning all sessions.
+    Used for the 'Activity Feed' panel.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT s.name, a.timestamp, a.status, sess.date
+        FROM Attendance a
+        JOIN Students s ON a.student_id = s.id
+        JOIN Sessions sess ON a.session_id = sess.session_id
+        ORDER BY a.id DESC
+        LIMIT ?
+    ''', (limit,))
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    # Convert rows to a list of dicts safely
+    activity = []
+    for r in rows:
+        activity.append({
+            "name": r["name"],
+            "time": r["timestamp"], # Usually format HH:MM:SS
+            "status": r["status"],
+            "date": r["date"]
+        })
+    return activity
+
+def get_daily_attendance_log():
+    """
+    Fetches all attendance records for the current day.
+    Used for the big 'Daily Attendance Log' table.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    
+    # Group by student_id to show only the first time they were marked today, or just list all logs.
+    # Grouping by highest ID (most recent) or Min time (first arrived). Let's use MIN time.
+    cursor.execute('''
+        SELECT st.id as student_id, st.name, MIN(a.timestamp) as time_in, a.status, s.date
+        FROM Attendance a
+        JOIN Students st ON a.student_id = st.id
+        JOIN Sessions s ON a.session_id = s.session_id
+        WHERE s.date = ?
+        GROUP BY st.id
+        ORDER BY time_in DESC
+    ''', (today_str,))
+    
+    rows = cursor.fetchall()
+    
+    # Also fetch all students completely missing so we can list 'Absent' in the table clearly
+    cursor.execute('SELECT id, name FROM Students')
+    all_students = cursor.fetchall()
+    conn.close()
+    
+    # Convert tracked students into a lookup set
+    tracked_students = {row['student_id']: row for row in rows}
+    
+    attendance_log = []
+    
+    # Loop all students: if they have a log today, show it. Otherwise, show Absent.
+    for student in all_students:
+        s_id = student['id']
+        s_name = student['name']
+        
+        if s_id in tracked_students:
+            record = tracked_students[s_id]
+            attendance_log.append({
+                "student_id": s_id,
+                "name": s_name,
+                "time_in": record['time_in'],
+                "status": record['status'] # Usually 'Present'
+            })
+        else:
+            attendance_log.append({
+                "student_id": s_id,
+                "name": s_name,
+                "time_in": "-- : --",
+                "status": "Absent"
+            })
+            
+    # Sort alphabetically or 'Present' first
+    attendance_log.sort(key=lambda x: (x['status'] == 'Absent', x['name']))
+    return attendance_log

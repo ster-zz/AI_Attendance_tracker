@@ -46,27 +46,43 @@ def get_duration(start_time_str):
         return "Unknown"
 
 # ----------------- ROUTES -----------------
-@app.route('/')
-def index():
+def get_dashboard_context(active_page='dashboard'):
     """
-    Home route.
-    Retrieves the actual active session strictly from the database.
+    Helper function to gather all database context needed to render index.html
     """
+    from database import get_dashboard_kpis, get_recent_activity, get_daily_attendance_log
+    
     active_session_row = get_active_session()
     
     session_data = None
     if active_session_row:
-        # Calculate dynamic duration
         duration = get_duration(active_session_row['start_time'])
-        
         session_data = {
             "session_id": active_session_row['session_id'],
             "date": active_session_row['date'],
             "start_time": active_session_row['start_time'],
             "duration": duration
         }
-        
-    return render_template('index.html', session=session_data)
+    
+    kpis = get_dashboard_kpis()
+    recent_activity = get_recent_activity(limit=4)
+    daily_attendance = get_daily_attendance_log()
+    
+    return {
+        "session": session_data,
+        "kpis": kpis,
+        "recent_activity": recent_activity,
+        "daily_attendance": daily_attendance,
+        "active_page": active_page
+    }
+
+@app.route('/')
+def index():
+    """
+    Home route.
+    """
+    context = get_dashboard_context(active_page='dashboard')
+    return render_template('index.html', **context)
 
 @app.route('/start_session', methods=['POST'])
 def handle_start_session():
@@ -131,6 +147,31 @@ def start_recognition_api():
     
     flash('Live Face Recognition started successfully. Open OpenCV window to monitor.', 'success')
     return redirect(url_for('index'))
+
+@app.route('/live')
+def live_camera_page():
+    context = get_dashboard_context(active_page='live')
+    return render_template('index.html', **context)
+
+@app.route('/upload')
+def video_upload_page():
+    context = get_dashboard_context(active_page='upload')
+    return render_template('index.html', **context)
+
+@app.route('/students')
+def student_directory_page():
+    context = get_dashboard_context(active_page='students')
+    return render_template('index.html', **context)
+
+@app.route('/reports')
+def reports_page():
+    context = get_dashboard_context(active_page='reports')
+    return render_template('index.html', **context)
+
+@app.route('/settings')
+def settings_page():
+    context = get_dashboard_context(active_page='settings')
+    return render_template('index.html', **context)
 
 if __name__ == '__main__':
     app.run(debug=DEBUG)

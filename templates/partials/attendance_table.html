@@ -1,22 +1,77 @@
-<div class="panel">
-    <div class="panel-hd">
-        <div class="panel-title">👥 Today's Attendance</div>
-        <span class="count-pill">Loading...</span>
+<div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+    <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+        <h2 class="text-lg font-bold text-secondary">Daily Attendance Log</h2>
+        <button class="text-primary text-sm font-bold hover:underline">Export Full Report</button>
     </div>
-    <table class="att-table">
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Student Name</th>
-                <th>Session</th>
-                <th>Time</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td colspan="5" class="att-more">Pending real database integration...</td>
-            </tr>
-        </tbody>
-    </table>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                    <th class="px-6 py-4">Roll No</th>
+                    <th class="px-6 py-4">Student Name</th>
+                    <th class="px-6 py-4">Time In</th>
+                    <th class="px-6 py-4">Status</th>
+                    <th class="px-6 py-4">AI Match Score</th>
+                    <th class="px-6 py-4 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-sm">
+
+                {% for record in daily_attendance %}
+                <tr class="hover:bg-slate-50/50 transition-colors">
+                    <td class="px-6 py-4 font-mono text-slate-600">ID-{{ record.student_id }}</td>
+                    <td class="px-6 py-4 font-bold text-secondary">{{ record.name }}</td>
+                    <td class="px-6 py-4 text-slate-500">{{ record.time_in }}</td>
+                    <td class="px-6 py-4">
+                        {% if record.status == 'Present' %}
+                        <span
+                            class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">Present</span>
+                        {% elif record.status == 'Late' %}
+                        <span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">Late</span>
+                        {% else %}
+                        <span class="px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold">Absent</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">
+                        {% if record.status == 'Present' %}
+                        <div class="flex items-center gap-2">
+                            <div class="w-16 bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                <div class="bg-emerald-500 h-full w-[98%]"></div>
+                            </div>
+                            <span class="text-xs font-bold text-emerald-600">98%</span>
+                        </div>
+                        {% else %}
+                        <span class="text-slate-400">N/A</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button class="text-slate-400 hover:text-secondary transition-colors">
+                            <span class="material-symbols-outlined">more_horiz</span>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+
+                {% if not session %}
+                <tr>
+                    <td colspan="6" class="px-6 py-8 text-center text-slate-500 font-medium">Pending real database
+                        integration... start a session to view logs.</td>
+                </tr>
+                {% endif %}
+
+            </tbody>
+        </table>
+    </div>
+
+    <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+        <p class="text-xs text-slate-500 font-medium">Showing {{ daily_attendance|length }} total students</p>
+        <div class="flex gap-2">
+            <button class="p-2 border border-slate-200 rounded-lg hover:bg-white transition-colors shadow-sm">
+                <span class="material-symbols-outlined text-sm">chevron_left</span>
+            </button>
+            <button class="p-2 border border-slate-200 rounded-lg hover:bg-white transition-colors shadow-sm">
+                <span class="material-symbols-outlined text-sm">chevron_right</span>
+            </button>
+        </div>
+    </div>
 </div>

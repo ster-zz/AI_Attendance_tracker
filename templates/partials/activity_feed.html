@@ -1,35 +1,47 @@
-<div class="panel">
-    <div class="panel-hd">
-        <div class="panel-title">⚡ Live Activity Feed</div>
-        <button class="filter-btn">Filter ▾</button>
-    </div>
-    <div class="act-list">
-        <!-- Placeholder data for now until we have real DB queries for activity -->
-        <div class="act-item">
-            <span class="act-time">Now</span>
-            <span class="act-icon ok">✓</span>
-            <div class="act-body">
-                <div class="act-title">Dashboard loaded</div>
-                <div class="act-detail">Waiting for real activity data.</div>
-            </div>
+<h2 class="text-lg font-bold text-secondary mb-6 flex items-center gap-2">
+    <span class="material-symbols-outlined text-primary">history</span>
+    Recent Detections
+</h2>
+<div class="space-y-4 flex-1 overflow-y-auto pr-2">
+
+    {% for log in recent_activity %}
+    <div
+        class="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 shadow-sm">
+        <div
+            class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 shadow-sm text-lg font-bold text-slate-400">
+            {{ log.name[0] }}
         </div>
-        {% if session %}
-        <div class="act-item">
-            <span class="act-time">{{ session.start_time }}</span>
-            <span class="act-icon">▶</span>
-            <div class="act-body">
-                <div class="act-title">Session #{{ session.session_id }} Started</div>
-                <div class="act-detail">Date: {{ session.date }} · Active monitoring ✓</div>
-            </div>
+        <div class="flex-1">
+            <p class="text-sm font-bold text-secondary">{{ log.name }}</p>
+            <p class="text-xs text-slate-500">{{ log.time }}</p>
         </div>
-        {% endif %}
-        <div class="act-item">
-            <span class="act-time">Boot</span>
-            <span class="act-icon">🗄</span>
-            <div class="act-body">
-                <div class="act-title">System Initialized</div>
-                <div class="act-detail">DB connected.</div>
-            </div>
+        <div
+            class="flex items-center gap-1.5 px-3 py-1 rounded-full {% if log.status == 'Present' %}bg-emerald-100 text-emerald-700{% else %}bg-slate-100 text-slate-700{% endif %} text-xs font-bold">
+            <span
+                class="w-1.5 h-1.5 rounded-full {% if log.status == 'Present' %}bg-emerald-500{% else %}bg-slate-500{% endif %}"></span>
+            {{ log.status }}
         </div>
     </div>
+    {% endfor %}
+
+    <!-- Wait State -->
+    {% if session %}
+    <div
+        class="flex items-center gap-4 p-3 rounded-xl bg-slate-50/50 border border-transparent opacity-70 animate-pulse">
+        <div class="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center">
+            <span class="material-symbols-outlined text-slate-400">person</span>
+        </div>
+        <div class="flex-1">
+            <p class="text-sm font-bold text-slate-500">Scanning in progress...</p>
+            <p class="text-xs text-slate-400">Waiting for next entry</p>
+        </div>
+    </div>
+    {% else %}
+    <div class="flex flex-col items-center justify-center py-6 text-center opacity-60">
+        <span class="material-symbols-outlined text-slate-300 text-4xl mb-2">history_toggle_off</span>
+        <p class="text-sm font-bold text-slate-500">No detections</p>
+        <p class="text-xs text-slate-400">Start a session to capture logs.</p>
+    </div>
+    {% endif %}
+
 </div>

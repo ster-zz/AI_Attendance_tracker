@@ -1,69 +1,56 @@
-<nav class="sidebar-nav">
-    <!-- Main Navigation -->
-    <div class="sb-section">
-        <div class="sb-label">Main Menu</div>
-        <a class="sb-item active">
-            <span class="sb-item-icon">📊</span>
-            Overview
-            <span class="sb-item-badge">Live</span>
+<aside class="w-64 bg-white border-r border-slate-200 flex flex-col fixed h-full z-50">
+    <div class="p-6 flex items-center gap-3">
+        <div class="bg-primary rounded-lg p-2 flex items-center justify-center text-white shadow-md shadow-primary/20">
+            <span class="material-symbols-outlined">school</span>
+        </div>
+        <h1 class="text-xl font-bold text-secondary">AI Classroom</h1>
+    </div>
+
+    <nav class="flex-1 px-4 space-y-2 mt-4">
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors {% if active_page == 'dashboard' %}bg-primary/10 text-primary font-semibold shadow-sm{% else %}text-slate-600 hover:bg-slate-50 hover:text-secondary{% endif %}"
+            href="{{ url_for('index') }}">
+            <span class="material-symbols-outlined">dashboard</span>
+            Dashboard
         </a>
-        <a class="sb-item">
-            <span class="sb-item-icon">📋</span>
-            Sessions
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors {% if active_page == 'live' %}bg-primary/10 text-primary font-semibold shadow-sm{% else %}text-slate-600 hover:bg-slate-50 hover:text-secondary{% endif %}"
+            href="{{ url_for('live_camera_page') }}">
+            <span class="material-symbols-outlined">videocam</span>
+            Live Camera
         </a>
-        <a class="sb-item">
-            <span class="sb-item-icon">👥</span>
-            Students
-            <span class="sb-item-badge">24</span>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors {% if active_page == 'upload' %}bg-primary/10 text-primary font-semibold shadow-sm{% else %}text-slate-600 hover:bg-slate-50 hover:text-secondary{% endif %}"
+            href="{{ url_for('video_upload_page') }}">
+            <span class="material-symbols-outlined">cloud_upload</span>
+            Video Upload
         </a>
-        <a class="sb-item">
-            <span class="sb-item-icon">📈</span>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors {% if active_page == 'students' %}bg-primary/10 text-primary font-semibold shadow-sm{% else %}text-slate-600 hover:bg-slate-50 hover:text-secondary{% endif %}"
+            href="{{ url_for('student_directory_page') }}">
+            <span class="material-symbols-outlined">group</span>
+            Student Directory
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors {% if active_page == 'reports' %}bg-primary/10 text-primary font-semibold shadow-sm{% else %}text-slate-600 hover:bg-slate-50 hover:text-secondary{% endif %}"
+            href="{{ url_for('reports_page') }}">
+            <span class="material-symbols-outlined">bar_chart</span>
             Reports
         </a>
-    </div>
 
-    <div class="sb-divider"></div>
+        <div class="pt-8 pb-4 px-4 text-xs font-bold text-slate-400 uppercase tracking-wider">System</div>
 
-    <!-- System -->
-    <div class="sb-section">
-        <div class="sb-label">System</div>
-        <a class="sb-item">
-            <span class="sb-item-icon">📷</span>
-            Face Recognition
-        </a>
-        <a class="sb-item">
-            <span class="sb-item-icon">🗄</span>
-            Database
-        </a>
-        <a class="sb-item">
-            <span class="sb-item-icon">⚙</span>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors {% if active_page == 'settings' %}bg-primary/10 text-primary font-semibold shadow-sm{% else %}text-slate-600 hover:bg-slate-50 hover:text-secondary{% endif %}"
+            href="{{ url_for('settings_page') }}">
+            <span class="material-symbols-outlined">settings</span>
             Settings
         </a>
-    </div>
+    </nav>
 
-    <!-- Footer: System Status + Profile -->
-    <div class="sb-footer">
-        <div class="sb-footer-label">System Health</div>
-        <div class="sb-status-row">
-            <span>📁 Encodings</span>
-            <span class="sb-status-ok">● Loaded</span>
-        </div>
-        <div class="sb-status-row">
-            <span>🗄 Database</span>
-            <span class="sb-status-ok">● OK</span>
-        </div>
-        <div class="sb-status-row">
-            <span>👥 Students</span>
-            <span class="sb-status-ok">24 synced</span>
-        </div>
-
-        <!-- Profile -->
-        <div class="sb-profile">
-            <div class="sb-avatar">AD</div>
+    <div class="p-4 border-t border-slate-100">
+        <div class="bg-secondary text-white p-4 rounded-xl flex items-center gap-3 shadow-lg shadow-secondary/20">
+            <div class="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
+                <span class="material-symbols-outlined text-accent">bolt</span>
+            </div>
             <div>
-                <div class="sb-profile-name">Admin</div>
-                <div class="sb-profile-role">System Administrator</div>
+                <p class="text-xs opacity-80">Pro Version</p>
+                <p class="text-sm font-bold">Active License</p>
             </div>
         </div>
     </div>
-</nav>
+</aside>

@@ -1,14 +1,27 @@
-<nav class="topbar">
-    <div class="topbar-brand">
-        <div class="topbar-logo">🎓</div>
-        <div>
-            <span class="topbar-name">AI Classroom</span>
-            <span class="topbar-crumb">/ Dashboard</span>
+<header class="flex items-center justify-between mb-8">
+    <div class="max-w-md w-full relative">
+        <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+        <input
+            class="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none bg-white shadow-sm"
+            placeholder="Search for students, classes..." type="text" />
+    </div>
+
+    <div class="flex items-center gap-6">
+        <button
+            class="relative p-2 text-slate-500 hover:bg-white rounded-full transition-colors shadow-sm bg-white/50 hover:shadow-md">
+            <span class="material-symbols-outlined">notifications</span>
+            <span class="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full border-2 border-white"></span>
+        </button>
+
+        <div class="flex items-center gap-3 border-l pl-6 border-slate-200">
+            <div class="text-right">
+                <p class="text-sm font-bold text-secondary">System Admin</p>
+                <p class="text-xs text-slate-500">Classroom Control</p>
+            </div>
+            <div
+                class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold border-2 border-primary shadow-sm">
+                AD
+            </div>
         </div>
     </div>
-    <div class="topbar-right">
-        <div class="icon-btn">🔔</div>
-        <div class="icon-btn">⚙</div>
-        <div class="avatar-btn">AD</div>
-    </div>
-</nav>
+</header>

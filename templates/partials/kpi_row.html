@@ -1,35 +1,53 @@
-<div>
-    <div class="sec-title">Live Overview</div>
-    <div class="kpi-row">
-        <div class="kpi-card">
-            <div class="kpi-icon">📡</div>
-            <div class="kpi-value {% if session %}active-val{% endif %}">
-                {% if session %}● Session Active{% else %}Inactive{% endif %}
-            </div>
-            <div class="kpi-label">Status</div>
-            <div class="kpi-chip">
-                {% if session %}Session #{{ session.session_id }} running{% else %}Ready{% endif %}
-            </div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+
+    <div
+        class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between transition-transform hover:-translate-y-1 hover:border-primary/30">
+        <div class="flex items-center justify-between mb-4">
+            <span class="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">groups</span>
+            <span class="text-emerald-500 text-sm font-bold">Total</span>
         </div>
-        <div class="kpi-card">
-            <div class="kpi-icon">⏱</div>
-            <div class="kpi-value">{% if session %}{{ session.duration }}{% else %}0m{% endif %}</div>
-            <div class="kpi-label">Current Duration</div>
-            <div class="kpi-chip">
-                {% if session %}Started {{ session.start_time }}{% else %}Not started{% endif %}
-            </div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon">👤</div>
-            <div class="kpi-value">24</div>
-            <div class="kpi-label">Students Recognized</div>
-            <div class="kpi-chip">89% attendance rate</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon">📋</div>
-            <div class="kpi-value">3</div>
-            <div class="kpi-label">Sessions Today</div>
-            <div class="kpi-chip">↑ 1 vs yesterday</div>
+        <div>
+            <p class="text-slate-500 text-sm font-medium">Total Students</p>
+            <h3 class="text-2xl font-bold text-secondary">{{ kpis.total }}</h3>
         </div>
     </div>
+
+    <div
+        class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between transition-transform hover:-translate-y-1 hover:border-secondary/30">
+        <div class="flex items-center justify-between mb-4">
+            <span class="material-symbols-outlined text-secondary bg-secondary/10 p-2 rounded-lg">person_check</span>
+            <span class="text-emerald-500 text-sm font-bold">{{ kpis.present_percentage }}%</span>
+        </div>
+        <div>
+            <p class="text-slate-500 text-sm font-medium">Present Today</p>
+            <h3 class="text-2xl font-bold text-secondary">{{ kpis.present }}</h3>
+        </div>
+    </div>
+
+    <div
+        class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between transition-transform hover:-translate-y-1 hover:border-orange-500/30">
+        <div class="flex items-center justify-between mb-4">
+            <span class="material-symbols-outlined text-orange-500 bg-orange-100 p-2 rounded-lg">person_off</span>
+            <span class="text-orange-500 text-sm font-bold">{{ kpis.absent_percentage }}%</span>
+        </div>
+        <div>
+            <p class="text-slate-500 text-sm font-medium">Absent</p>
+            <h3 class="text-2xl font-bold text-secondary">{{ kpis.absent }}</h3>
+        </div>
+    </div>
+
+    <div
+        class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between transition-transform hover:-translate-y-1 hover:border-slate-300">
+        <div class="flex items-center justify-between mb-4">
+            <span class="material-symbols-outlined text-slate-500 bg-slate-100 p-2 rounded-lg">calendar_today</span>
+            <span class="text-slate-500 text-sm font-bold">{% if session %}LIVE{% else %}Ready{% endif %}</span>
+        </div>
+        <div>
+            <p class="text-slate-500 text-sm font-medium">{% if session %}Session {{ session.session_id }}{% else
+                %}Today's Date{% endif %}</p>
+            <h3 class="text-lg font-bold text-secondary">{% if session %}{{ session.date }}{% else %}October 24, 2026{%
+                endif %}</h3>
+        </div>
+    </div>
+
 </div>

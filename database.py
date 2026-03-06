@@ -96,6 +96,59 @@ def get_active_session():
     conn.close()
     return session
 
+def create_historical_session(date_str, start_time_str, end_time_str=None, subject=None):
+    """
+    Creates a completed session directly (active=0).
+    Used for video uploads where the class already happened.
+    We hijack the end_time field to store the Subject if provided natively 
+    since we don't want to alter DB schema right now.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO Sessions (date, start_time, end_time, active)
+        VALUES (?, ?, ?, 0)
+    ''', (date_str, start_time_str, subject if subject else end_time_str))
+    conn.commit()
+    session_id = cursor.lastrowid
+    conn.close()
+    return session_id
+
+def mark_attendance_for_session(name, session_id):
+    """
+    Marks the student "Present" for a specific historical session.
+    Used by the video upload background thread.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Get student ID
+    cursor.execute("SELECT id FROM Students WHERE name = ?", (name,))
+    student_record = cursor.fetchone()
+    
+    if not student_record:
+        conn.close()
+        return False
+        
+    student_id = student_record['id']
+    
+    # Check if already marked
+    cursor.execute('''
+        SELECT id FROM Attendance 
+        WHERE session_id = ? AND student_id = ?
+    ''', (session_id, student_id))
+    
+    if cursor.fetchone() is None:
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute('''
+            INSERT INTO Attendance (session_id, student_id, status, reason, timestamp)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (session_id, student_id, "Present", "Video Analysis", timestamp))
+        conn.commit()
+        
+    conn.close()
+    return True
+
 def is_session_active():
     """
     Checks if there is any active session running.

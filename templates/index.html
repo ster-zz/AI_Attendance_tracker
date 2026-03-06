@@ -88,6 +88,7 @@
         {% endif %}
         {% endwith %}
 
+        {% if active_page == 'dashboard' or active_page == 'live' %}
         <main class="grid grid-cols-12 gap-6">
             <!-- KPI Statistics (Left Column) -->
             <div class="col-span-3 space-y-4">
@@ -183,6 +184,11 @@
 
         <!-- Attendance Table -->
         {% include 'partials/attendance_table.html' %}
+        {% elif active_page == 'upload' %}
+        <main class="flex-1 flex flex-col items-center justify-center pt-8">
+            {% include 'partials/video_upload.html' %}
+        </main>
+        {% endif %}
 
         <footer
             class="flex justify-between items-center text-[9px] text-black/40 font-display uppercase tracking-widest px-4 mt-2">

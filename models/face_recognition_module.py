@@ -323,3 +323,92 @@ def start_face_recognition():
     ai_thread.join(timeout=2.0)
     video_capture.release()
     cv2.destroyAllWindows()
+
+def process_uploaded_video_thread(filepath, session_id):
+    """
+    Background Thread: Processes an uploaded class recording.
+    Crucial constraints:
+    - Skips frames aggressively (e.g. 1 frame every 3 seconds) to prevent CPU gridlock.
+    - Uses database.py's mark_attendance_for_session() instead of the live active session.
+    - Auto-deletes the .mp4 file permanently once finished to save hard drive space.
+    """
+    from database import mark_attendance_for_session
+    
+    # 1. Load Encodings
+    global known_face_encodings_global, known_face_names_global
+    if not known_face_encodings_global:
+        known_face_encodings_global, known_face_names_global = load_encodings()
+
+    if not known_face_encodings_global:
+        print("No encodings available. Deleting uploaded file and aborting.")
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        return
+
+    # 2. Open Video File
+    video_capture = cv2.VideoCapture(filepath)
+    if not video_capture.isOpened():
+        print(f"Error: Could not open uploaded video file {filepath}")
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        return
+
+    fps = video_capture.get(cv2.CAP_PROP_FPS)
+    if fps <= 0:
+        fps = 30 # fallback if metadata is corrupt
+        
+    process_interval_seconds = 3 # Analyze 1 frame every 3 seconds
+    frame_skip_count = int(fps * process_interval_seconds)
+    
+    print(f"[Video Analysis] Started for session {session_id}. Path: {filepath}")
+    
+    frame_count = 0
+    while True:
+        ret, frame = video_capture.read()
+        if not ret:
+            break # End of video
+            
+        frame_count += 1
+        
+        # Skip frames aggressively
+        if frame_count % frame_skip_count != 0:
+            continue
+            
+        # Process this frame!
+        small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
+        rgb_full_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        
+        temp_face_locations = []
+        if face_detector is not None:
+            results = face_detector(small_frame, verbose=False)
+            for box in results[0].boxes.xyxy:
+                x_min, y_min, x_max, y_max = box.tolist()
+                x_min = int(x_min * 2)
+                y_min = int(y_min * 2)
+                x_max = int(x_max * 2)
+                y_max = int(y_max * 2)
+                temp_face_locations.append((y_min, x_max, y_max, x_min))
+        
+        # We only pass locations to speed up dlib
+        if len(temp_face_locations) > 0:
+            temp_face_encodings = face_recognition.face_encodings(rgb_full_frame, temp_face_locations, num_jitters=1)
+            
+            for face_encoding in temp_face_encodings:
+                matches = face_recognition.compare_faces(known_face_encodings_global, face_encoding, tolerance=0.55)
+                face_distances = face_recognition.face_distance(known_face_encodings_global, face_encoding)
+                
+                if len(face_distances) > 0:
+                    best_match_index = np.argmin(face_distances)
+                    if matches[best_match_index]:
+                        name = known_face_names_global[best_match_index]
+                        # Mark them present in database for this specific historic session
+                        mark_attendance_for_session(name, session_id)
+
+    # 3. Cleanup! Release memory and Auto-Delete the massive .mp4 file
+    video_capture.release()
+    try:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+            print(f"[Video Analysis] Complete for session {session_id}. File {filepath} permanently deleted.")
+    except Exception as e:
+        print(f"[Video Analysis] Warning: Could not delete {filepath} - {e}")

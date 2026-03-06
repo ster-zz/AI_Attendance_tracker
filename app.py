@@ -1,12 +1,20 @@
 from flask import Flask, render_template, request, redirect, flash, url_for
+from werkzeug.utils import secure_filename
+import os
 from config import SECRET_KEY, DEBUG
-from database import init_db, create_session, end_session, get_active_session, is_session_active, auto_recover_sessions, sync_students_from_images
-from models.face_recognition_module import encode_known_faces, start_face_recognition
+from database import init_db, create_session, end_session, get_active_session, is_session_active, auto_recover_sessions, sync_students_from_images, create_historical_session
+from models.face_recognition_module import encode_known_faces, start_face_recognition, process_uploaded_video_thread
 from datetime import datetime
 import threading
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+
+# Configure file uploads
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500 MB limit
 
 # ----------------- RECOVERY & STARTUP LOGIC -----------------
 with app.app_context():
@@ -147,6 +155,52 @@ def start_recognition_api():
     
     flash('Live Face Recognition started successfully. Open OpenCV window to monitor.', 'success')
     return redirect(url_for('index'))
+
+@app.route('/handle_video_upload', methods=['POST'])
+def handle_video_upload():
+    """
+    Handles class recording uploads securely, creates a historical session,
+    and spins up a background thread to process the video so the server doesn't freeze.
+    """
+    if 'video' not in request.files:
+        flash('No video file selected', 'error')
+        return redirect(url_for('video_upload_page'))
+        
+    file = request.files['video']
+    if file.filename == '':
+        flash('No video file selected', 'error')
+        return redirect(url_for('video_upload_page'))
+        
+    date_str = request.form.get('date', datetime.now().strftime('%Y-%m-%d'))
+    subject_str = request.form.get('subject', 'Untitled Class')
+    start_time_str = datetime.now().strftime('%H:%M:%S')
+    
+    if file:
+        filename = secure_filename(file.filename)
+        # Add timestamp to prevent overwriting
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        save_name = f"{timestamp}_{filename}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], save_name)
+        
+        try:
+            file.save(filepath)
+            
+            # Create a DB historical session
+            session_id = create_historical_session(date_str, start_time_str, subject=subject_str)
+            
+            # Start background processing thread
+            processor_thread = threading.Thread(
+                target=process_uploaded_video_thread, 
+                args=(filepath, session_id)
+            )
+            processor_thread.daemon = True
+            processor_thread.start()
+            
+            flash('Video uploaded successfully! The AI is now processing the attendance in the background.', 'success')
+        except Exception as e:
+            flash(f'Error saving or processing file: {e}', 'error')
+            
+    return redirect(url_for('video_upload_page'))
 
 @app.route('/live')
 def live_camera_page():

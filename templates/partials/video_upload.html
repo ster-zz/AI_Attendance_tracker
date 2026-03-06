@@ -1,0 +1,116 @@
+<div class="serene-card p-10 max-w-4xl mx-auto w-full flex flex-col items-center">
+    <div class="size-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+        <span class="material-symbols-outlined text-primary text-4xl">cloud_upload</span>
+    </div>
+    <h2 class="text-3xl font-display font-bold text-secondary mb-3">Upload Class Recording</h2>
+    <p class="text-slate-500 mb-8 max-w-lg text-center leading-relaxed">
+        Upload a video recording of your classroom session. Our AI will analyze the footage, detect students, and
+        automatically generate an attendance report.
+    </p>
+
+    <form id="uploadForm" action="{{ url_for('handle_video_upload') }}" method="POST" enctype="multipart/form-data"
+        class="w-full">
+        <!-- Drag & Drop Area -->
+        <div id="dropZone"
+            class="w-full border-2 border-dashed border-slate-300 rounded-2xl p-12 text-center hover:bg-slate-50 hover:border-primary/50 transition-colors cursor-pointer group relative bg-white">
+            <input type="file" id="videoFile" name="video" accept=".mp4,.avi,.mov"
+                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" required>
+
+            <span
+                class="material-symbols-outlined text-5xl text-slate-300 group-hover:text-primary transition-colors mb-4 block">movie</span>
+            <p class="text-slate-600 font-medium text-lg mb-1">Drag and drop your video here</p>
+            <p class="text-slate-400 text-sm mb-4">or click to browse from your computer</p>
+            <p class="text-xs text-slate-400 font-bold tracking-wider">SUPPORTED FORMATS: MP4, AVI, MOV (MAX 500MB)</p>
+
+            <!-- File details (Shown when selected) -->
+            <div id="fileInfo"
+                class="hidden mt-6 p-4 bg-primary/5 rounded-xl border border-primary/20 flex items-center gap-4 text-left pointer-events-none">
+                <div class="bg-primary/20 p-2 rounded text-primary">
+                    <span class="material-symbols-outlined">video_file</span>
+                </div>
+                <div class="flex-1">
+                    <p id="fileName" class="font-bold text-secondary text-sm truncate max-w-xs">filename.mp4</p>
+                    <p id="fileSize" class="text-xs text-slate-500">0 MB</p>
+                </div>
+                <span class="material-symbols-outlined text-green-500">check_circle</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-6 mt-8">
+            <div class="flex flex-col gap-2">
+                <label for="sessionDate" class="text-sm font-bold text-secondary uppercase tracking-wider">Session
+                    Date</label>
+                <input type="date" id="sessionDate" name="date" required
+                    class="bg-white border text-sm border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+            </div>
+            <div class="flex flex-col gap-2">
+                <label for="subject" class="text-sm font-bold text-secondary uppercase tracking-wider">Class/Subject
+                    (Optional)</label>
+                <input type="text" id="subject" name="subject" placeholder="e.g. Intro to Computer Science"
+                    class="bg-white border text-sm border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+            </div>
+        </div>
+
+        <!-- Processing States & Submit -->
+        <div class="mt-10 flex flex-col items-center">
+            <div id="loadingState" class="hidden w-full max-w-md flex-col items-center gap-4 mb-6">
+                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div id="progressBar"
+                        class="bg-primary h-full w-1/3 rounded-full animate-pulse transition-all duration-300"></div>
+                </div>
+                <p id="loadingStatusText" class="text-sm font-bold text-primary animate-pulse">Uploading and Processing
+                    Video...</p>
+                <p class="text-xs text-slate-400 text-center max-w-xs leading-relaxed">You can leave this page. The
+                    system will continue processing the attendance in the background.</p>
+            </div>
+
+            <button type="submit" id="submitBtn"
+                class="bg-primary hover:bg-primary-hover text-white px-10 py-4 rounded-xl font-display font-bold text-lg shadow-lg hover:shadow-primary/30 transition-all flex items-center justify-center gap-3 w-full max-w-md">
+                <span class="material-symbols-outlined">auto_fix_high</span>
+                ANALYZE VIDEO
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // JS to handle file selection display
+    const fileInput = document.getElementById('videoFile');
+    const dropZone = document.getElementById('dropZone');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const form = document.getElementById('uploadForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const loadingState = document.getElementById('loadingState');
+
+    // Set default date to today
+    document.getElementById('sessionDate').valueAsDate = new Date();
+
+    fileInput.addEventListener('change', function (e) {
+        if (this.files && this.files[0]) {
+            const file = this.files[0];
+            fileName.textContent = file.name;
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            fileSize.textContent = `${sizeMB} MB`;
+
+            // Hide placeholder text, show file info
+            Array.from(dropZone.children).forEach(child => {
+                if (child.tagName === 'P' || child.tagName === 'SPAN') {
+                    child.classList.add('hidden');
+                }
+            });
+            fileInfo.classList.remove('hidden');
+            dropZone.classList.add('border-primary', 'bg-primary/5');
+            dropZone.classList.remove('border-slate-300', 'bg-white');
+        }
+    });
+
+    form.addEventListener('submit', function (e) {
+        // Just UI logic immediately on submit
+        submitBtn.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+        submitBtn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> PROCESSING...';
+        loadingState.classList.remove('hidden');
+        loadingState.classList.add('flex');
+    });
+</script>

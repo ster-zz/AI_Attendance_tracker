@@ -12,6 +12,7 @@
         rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script id="tailwind-config">
         tailwind.config = {
@@ -113,35 +114,38 @@
                         {% endif %}
                     </div>
 
-                    <div class="flex-1 flex items-center justify-center p-8 relative">
+                    <div class="flex-1 flex flex-col items-center justify-center p-4 relative min-h-[400px]">
 
                         {% if session %}
-                        <!-- Session is active -->
                         <div
-                            class="text-center serene-card p-10 border-2 border-dashed border-yale-blue/20 max-w-lg w-full">
-                            <h3 class="text-2xl font-bold mb-4 text-yale-blue">Tracking Active</h3>
-                            <form action="{{ url_for('start_recognition_api') }}" method="POST" class="mb-4">
-                                <button type="submit"
-                                    class="interactive-gradient px-8 py-3 rounded-lg font-display font-bold text-sm hover:shadow-lg hover:shadow-yale-blue/20 transition-all flex items-center justify-center gap-3 mx-auto w-full">
-                                    <span class="material-symbols-outlined text-sm">face</span>
-                                    OPEN CAMERA WINDOW
-                                </button>
-                            </form>
-                            <form action="{{ url_for('handle_end_session') }}" method="POST">
-                                <button type="submit"
-                                    class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-8 py-3 rounded-lg font-display font-bold text-sm transition-all flex items-center justify-center gap-3 mx-auto w-full">
-                                    <span class="material-symbols-outlined text-sm">stop</span>
-                                    END SESSION
-                                </button>
-                            </form>
-                        </div>
-                        <div
-                            class="absolute top-4 left-4 bg-vanilla-moonstone/80 text-yale-blue font-bold px-3 py-1 rounded text-xs border border-yale-blue/20">
-                            LIVE | {{ session.duration }}
+                            class="w-full h-full relative rounded-lg overflow-hidden border-2 border-yale-blue/20 bg-black">
+                            <img src="{{ url_for('video_feed') }}" class="w-full h-full object-contain" id="live-feed">
+
+                            <!-- Overlay Controls -->
+                            <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
+                                <form action="{{ url_for('start_recognition_api') }}" method="POST">
+                                    <button type="submit"
+                                        class="interactive-gradient px-6 py-2 rounded-full font-display font-bold text-[10px] hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                                        <span class="material-symbols-outlined text-sm">visibility</span>
+                                        START AI TRACKING
+                                    </button>
+                                </form>
+                                <form action="{{ url_for('handle_end_session') }}" method="POST">
+                                    <button type="submit"
+                                        class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-full font-display font-bold text-[10px] transition-all flex items-center justify-center gap-2">
+                                        <span class="material-symbols-outlined text-sm">power_settings_new</span>
+                                        END SESSION
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div
+                                class="absolute top-4 left-4 bg-black/40 backdrop-blur-md text-white font-bold px-3 py-1 rounded text-[10px] border border-white/20">
+                                LIVE | {{ session.duration }}
+                            </div>
                         </div>
 
                         {% else %}
-                        <!-- Session is NOT active -->
                         <div class="text-center serene-card p-10 border-2 border-dashed border-yale-blue/20 max-w-lg">
                             <div
                                 class="size-24 bg-yale-blue/5 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -159,10 +163,6 @@
                                 </button>
                             </form>
                         </div>
-                        <div
-                            class="absolute top-4 left-4 bg-vanilla-moonstone/50 text-black/40 px-3 py-1 rounded text-xs border border-yale-blue/10">
-                            0.0 FPS | NO SIGNAL
-                        </div>
                         {% endif %}
 
                     </div>
@@ -175,18 +175,444 @@
                     <div
                         class="p-4 border-b border-yale-blue/10 flex justify-between items-center bg-vanilla-moonstone/30">
                         <h2 class="text-xs font-display font-bold text-yale-blue">RECENT DETECTIONS</h2>
-                        <button class="text-[10px] text-yale-blue font-bold hover:underline">VIEW ALL</button>
+                        <a href="{{ url_for('view_database') }}"
+                            class="text-[10px] text-yale-blue font-bold hover:underline">VIEW ALL</a>
                     </div>
                     {% include 'partials/activity_feed.html' %}
                 </div>
             </div>
         </main>
-
-        <!-- Attendance Table -->
+        <!-- Attendance Table Section -->
         {% include 'partials/attendance_table.html' %}
+
         {% elif active_page == 'upload' %}
         <main class="flex-1 flex flex-col items-center justify-center pt-8">
             {% include 'partials/video_upload.html' %}
+        </main>
+
+        {% elif active_page == 'incidents' %}
+        <main class="space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-yale-blue">INCIDENT LOG</h2>
+                <span class="text-xs bg-yale-blue/10 text-yale-blue px-3 py-1 rounded-full font-bold">{{
+                    incidents|length }} RECORDS</span>
+            </div>
+
+            <div class="grid grid-cols-3 gap-6">
+                {% if incidents %}
+                {% for inc in incidents %}
+                <div class="serene-card overflow-hidden group hover:border-yale-blue/40 transition-colors">
+                    <div class="h-48 bg-black/5 relative overflow-hidden">
+                        {% if inc.image_path %}
+                        <img src="{{ url_for('static', filename=inc.image_path.replace('static/', '')) }}"
+                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        {% else %}
+                        <div class="w-full h-full flex items-center justify-center"><span
+                                class="material-symbols-outlined text-4xl opacity-20 text-yale-blue">image</span></div>
+                        {% endif %}
+                        <div
+                            class="absolute top-3 left-3 px-2 py-1 bg-red-500 text-white text-[10px] font-bold rounded shadow-sm uppercase">
+                            {{ inc.incident_type.replace('_', ' ') }}
+                        </div>
+                    </div>
+                    <div class="p-4 space-y-2">
+                        <h3 class="text-sm font-bold text-yale-blue mb-1 uppercase tracking-tight">{{ inc.student_name
+                            }}</h3>
+                        <div class="flex items-center gap-2 text-[10px] text-black/40 font-bold">
+                            <span class="material-symbols-outlined text-xs">schedule</span> {{ inc.timestamp }}
+                        </div>
+                        <div class="flex items-center gap-2 text-[10px] text-black/40 font-bold">
+                            <span class="material-symbols-outlined text-xs">history</span> SESSION ID: {{ inc.session_id
+                            }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="col-span-3 py-20 text-center serene-card border-dashed">
+                    <span
+                        class="material-symbols-outlined text-4xl opacity-20 mb-4 block text-yale-blue">check_circle</span>
+                    <p class="text-black/40 font-bold uppercase tracking-widest text-xs">No incidents recorded. All
+                        students are compliant.</p>
+                </div>
+                {% endif %}
+            </div>
+        </main>
+
+        {% elif active_page == 'sessions' %}
+        <main class="space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-yale-blue">SESSION HISTORY</h2>
+            </div>
+            <div class="serene-card overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-vanilla-moonstone/30 border-b border-yale-blue/10">
+                        <tr>
+                            <th class="p-4 text-[10px] font-bold text-yale-blue uppercase tracking-widest">ID</th>
+                            <th class="p-4 text-[10px] font-bold text-yale-blue uppercase tracking-widest">Start Time
+                            </th>
+                            <th class="p-4 text-[10px] font-bold text-yale-blue uppercase tracking-widest">End Time</th>
+                            <th class="p-4 text-[10px] font-bold text-yale-blue uppercase tracking-widest">Status</th>
+                            <th class="p-4 text-[10px] font-bold text-yale-blue uppercase tracking-widest text-right">
+                                Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-yale-blue/5">
+                        {% if sessions %}
+                        {% for s in sessions %}
+                        <tr class="hover:bg-vanilla-light/50 transition-colors">
+                            <td class="p-4 text-xs font-bold text-yale-blue">#{{ s.id }}</td>
+                            <td class="p-4 text-xs text-black/60">{{ s.start_time }}</td>
+                            <td class="p-4 text-xs text-black/60">{{ s.end_time or 'In Progress' }}</td>
+                            <td class="p-4">
+                                {% if s.is_active %}
+                                <span
+                                    class="px-2 py-0.5 bg-green-500/10 text-green-600 text-[10px] font-bold rounded border border-green-500/20 uppercase">Active</span>
+                                {% else %}
+                                <span
+                                    class="px-2 py-0.5 bg-black/5 text-black/40 text-[10px] font-bold rounded border border-black/10 uppercase">Completed</span>
+                                {% endif %}
+                            </td>
+                            <td class="p-4 text-right">
+                                <button class="text-[10px] font-bold text-yale-blue hover:underline">VIEW
+                                    DETAILS</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="5"
+                                class="p-10 text-center text-xs text-black/40 font-bold uppercase tracking-widest">No
+                                sessions found</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </main>
+
+        {% elif active_page == 'database' %}
+        <main class="space-y-6">
+            <div class="flex justify-between items-center text-yale-blue">
+                <h2 class="text-2xl font-bold uppercase tracking-widest">Master Attendance Database</h2>
+                <div class="flex gap-4">
+                    <form action="{{ url_for('sync_database') }}" method="POST">
+                        <button type="submit"
+                            class="bg-vanilla-moonstone/50 hover:bg-vanilla-moonstone text-yale-blue border border-yale-blue/10 px-4 py-2 rounded font-bold text-xs flex items-center gap-2 transition-all">
+                            <span class="material-symbols-outlined text-sm">sync</span> SYNC ALL RECORDS
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="serene-card overflow-hidden">
+                <div class="p-4 border-b border-yale-blue/10 bg-vanilla-moonstone/30 flex justify-between items-center">
+                    <h3 class="text-xs font-bold text-yale-blue uppercase tracking-widest">Global Attendance Log</h3>
+                    <span class="text-[10px] font-bold text-black/40">{{ daily_attendance|length }} ENTRIES TODAY</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-vanilla-moonstone/10">
+                            <tr>
+                                <th class="p-4 text-[10px] font-bold text-yale-blue uppercase tracking-widest">Student
+                                </th>
+                                <th class="p-4 text-[10px] font-bold text-yale-blue uppercase tracking-widest">Timestamp
+                                </th>
+                                <th class="p-4 text-[10px] font-bold text-yale-blue uppercase tracking-widest">Status
+                                </th>
+                                <th class="p-4 text-[10px] font-bold text-yale-blue uppercase tracking-widest">Session
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-yale-blue/5">
+                            {% if attendance %}
+                            {% for a in attendance %}
+                            <tr class="hover:bg-vanilla-light/50 transition-colors">
+                                <td class="p-4">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="size-8 bg-yale-blue/5 rounded-full flex items-center justify-center text-yale-blue/40 font-bold text-[10px]">
+                                            {{ a.student_name[:2].upper() }}
+                                        </div>
+                                        <span class="text-xs font-bold text-yale-blue uppercase">{{ a.student_name
+                                            }}</span>
+                                    </div>
+                                </td>
+                                <td class="p-4 text-xs text-black/60 font-medium">{{ a.timestamp }}</td>
+                                <td class="p-4">
+                                    <span
+                                        class="px-2 py-0.5 bg-green-500/10 text-green-600 text-[9px] font-bold rounded border border-green-500/20 uppercase">{{
+                                        a.status }}</span>
+                                </td>
+                                <td class="p-4 text-[10px] font-bold text-black/40">ID: #{{ a.session_id }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="4"
+                                    class="p-10 text-center text-xs text-black/40 font-bold uppercase tracking-widest">
+                                    No attendance records found</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        {% elif active_page == 'students' %}
+        <main class="space-y-6">
+            <div class="flex justify-between items-center text-yale-blue">
+                <h2 class="text-2xl font-bold uppercase tracking-widest">Student Directory</h2>
+                <form action="{{ url_for('sync_database') }}" method="POST">
+                    <button type="submit"
+                        class="interactive-gradient px-4 py-2 rounded font-bold text-xs flex items-center gap-2 transition-all">
+                        <span class="material-symbols-outlined text-sm">sync</span> SYNC STUDENT IMAGES
+                    </button>
+                </form>
+            </div>
+
+            <div class="grid grid-cols-4 gap-6">
+                {% if students %}
+                {% for student in students %}
+                <div
+                    class="serene-card p-6 flex flex-col items-center text-center space-y-4 group hover:border-yale-blue/40 transition-all cursor-default">
+                    <div
+                        class="size-24 bg-yale-blue/5 rounded-2xl flex items-center justify-center mb-1 overflow-hidden border border-yale-blue/10 group-hover:bg-yale-blue/10 transition-colors">
+                        <span
+                            class="material-symbols-outlined text-4xl text-yale-blue/30 group-hover:scale-110 transition-transform">person</span>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-yale-blue uppercase tracking-widest">{{ student.name }}</h3>
+                        <p class="text-[10px] text-black/40 font-bold mt-1 tracking-wider">SYSTEM ID: #{{ student.id }}
+                        </p>
+                    </div>
+                    <div class="flex gap-2 w-full pt-2">
+                        <span
+                            class="flex-1 px-2 py-1.5 bg-green-500/5 text-green-600 text-[9px] font-bold rounded border border-green-500/10 uppercase">Auto-Synced</span>
+                        <span
+                            class="flex-1 px-2 py-1.5 bg-yale-blue/5 text-yale-blue text-[9px] font-bold rounded border border-yale-blue/10 uppercase">Verified</span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="col-span-4 p-20 text-center serene-card border-dashed">
+                    <span
+                        class="material-symbols-outlined text-4xl opacity-20 mb-4 block text-yale-blue">group_off</span>
+                    <p class="text-black/40 font-bold uppercase tracking-widest text-xs">No students registered in the
+                        system directory.</p>
+                </div>
+                {% endif %}
+            </div>
+        </main>
+
+        {% elif active_page == 'reports' %}
+        <main class="grid grid-cols-12 gap-8">
+            <!-- Sidebar: Session Selection Menu -->
+            <div class="col-span-3 space-y-4">
+                <div class="serene-card p-4 flex flex-col h-[700px]">
+                    <h3 class="text-xs font-bold text-yale-blue mb-4 uppercase tracking-widest flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sm">history</span> SELECT A SESSION
+                    </h3>
+                    <div class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
+                        {% if all_sessions %}
+                        {% for s in all_sessions %}
+                        <a href="{{ url_for('reports_page', session_id=s.session_id) }}"
+                            class="block p-3 rounded-lg border transition-all {% if selected_session and selected_session.session_id == s.session_id %} interactive-gradient border-transparent {% else %} bg-white/50 border-yale-blue/10 hover:border-yale-blue/30 text-yale-blue {% endif %}">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-[10px] font-bold opacity-80 uppercase tracking-tighter">ID: #{{
+                                    s.session_id }}</span>
+                                <span class="text-[9px] font-bold opacity-60">{{ s.date }}</span>
+                            </div>
+                            <div class="text-xs font-bold truncate">{{ s.subject or 'General Session' }}</div>
+                            <div class="text-[9px] font-bold opacity-40 mt-1 uppercase">{{ s.start_time }} - {{
+                                s.end_time or '...' }}</div>
+                        </a>
+                        {% endfor %}
+                        {% else %}
+                        <div class="text-center py-10 text-[10px] text-black/40 font-bold uppercase">No sessions found
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content: Selected Session Analytics -->
+            <div class="col-span-9 space-y-8">
+                {% if selected_session %}
+                <div class="flex justify-between items-end">
+                    <div>
+                        <h2 class="text-3xl font-bold text-yale-blue uppercase tracking-tight">{{
+                            selected_session.subject or 'General Session' }}</h2>
+                        <p class="text-[10px] text-black/40 font-bold mt-1 uppercase tracking-widest">ID: #{{
+                            selected_session.session_id }} | DATE: {{ selected_session.date }} | TIME: {{
+                            selected_session.start_time }} - {{ selected_session.end_time or 'IN PROGRESS' }}</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <button
+                            class="bg-white hover:bg-vanilla-moonstone/20 text-yale-blue border border-yale-blue/20 px-4 py-2 rounded font-bold text-xs flex items-center gap-2 transition-all">
+                            <span class="material-symbols-outlined text-sm">download</span> EXPORT PDF
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-8">
+                    <!-- Chart Card -->
+                    <div class="col-span-1 serene-card p-6 flex flex-col items-center">
+                        <h3 class="text-xs font-bold text-yale-blue mb-6 uppercase tracking-widest self-start">
+                            ATTENDANCE DISTRIBUTION</h3>
+                        <div class="size-48 relative">
+                            <canvas id="attendanceChart"></canvas>
+                        </div>
+                        <div class="mt-6 w-full space-y-2">
+                            <div class="flex justify-between text-[10px] font-bold">
+                                <span class="text-green-600 uppercase">Present</span>
+                                <span>{{ stats.present }} STUDENTS ({{ stats.present_percent }}%)</span>
+                            </div>
+                            <div class="flex justify-between text-[10px] font-bold">
+                                <span class="text-red-500 uppercase">Absent</span>
+                                <span>{{ stats.absent }} STUDENTS ({{ stats.absent_percent }}%)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Statistics Grid -->
+                    <div class="col-span-2 grid grid-cols-2 gap-6">
+                        <div class="serene-card p-8 flex flex-col justify-center items-center text-center">
+                            <div
+                                class="size-12 bg-green-500/10 rounded-full flex items-center justify-center text-green-600 mb-4">
+                                <span class="material-symbols-outlined">group</span>
+                            </div>
+                            <div class="text-3xl font-bold text-yale-blue mb-1">{{ stats.present }}</div>
+                            <div class="text-[10px] font-bold text-black/40 uppercase tracking-widest">Total Present
+                            </div>
+                        </div>
+                        <div class="serene-card p-8 flex flex-col justify-center items-center text-center">
+                            <div
+                                class="size-12 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mb-4">
+                                <span class="material-symbols-outlined">person_off</span>
+                            </div>
+                            <div class="text-3xl font-bold text-yale-blue mb-1">{{ stats.absent }}</div>
+                            <div class="text-[10px] font-bold text-black/40 uppercase tracking-widest">Total Absent
+                            </div>
+                        </div>
+                        <div
+                            class="col-span-2 serene-card p-6 flex flex-col items-center justify-center relative overflow-hidden">
+                            <div class="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                                <span class="material-symbols-outlined text-7xl text-yale-blue">analytics</span>
+                            </div>
+                            <div class="text-center z-10 w-full">
+                                <div class="flex justify-between items-center mb-2 px-2">
+                                    <span class="text-[10px] font-bold text-yale-blue uppercase">Attendance Rate</span>
+                                    <span class="text-xl font-black text-yale-blue">{{ stats.present_percent }}%</span>
+                                </div>
+                                <div class="h-4 bg-yale-blue/5 rounded-full overflow-hidden border border-yale-blue/10">
+                                    <div class="h-full interactive-gradient transition-all duration-1000"
+                                        style="width: {{ stats.present_percent }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Student List Table -->
+                <div class="serene-card overflow-hidden">
+                    <div class="p-4 border-b border-yale-blue/10 bg-vanilla-moonstone/30">
+                        <h3 class="text-xs font-bold text-yale-blue uppercase tracking-widest">Complete Student
+                            Attendance Status</h3>
+                    </div>
+                    <table class="w-full text-left">
+                        <thead class="bg-vanilla-moonstone/10">
+                            <tr>
+                                <th class="p-4 text-[10px] font-bold text-yale-blue uppercase tracking-widest">Student
+                                </th>
+                                <th class="p-4 text-[10px] font-bold text-yale-blue uppercase tracking-widest">Time
+                                    Registered</th>
+                                <th class="p-4 text-[10px] font-bold text-yale-blue uppercase tracking-widest">Session
+                                    ID</th>
+                                <th class="p-4 text-[10px] font-bold text-yale-blue uppercase tracking-widest">Presence
+                                    %</th>
+                                <th
+                                    class="p-4 text-[10px] font-bold text-yale-blue uppercase tracking-widest text-right">
+                                    Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-yale-blue/5">
+                            {% for r in report %}
+                            <tr class="hover:bg-vanilla-light/50 transition-colors">
+                                <td class="p-4">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="size-8 bg-yale-blue/5 rounded-full flex items-center justify-center text-yale-blue/40 font-bold text-[10px]">
+                                            {{ r.name[:2].upper() }}
+                                        </div>
+                                        <span class="text-xs font-bold text-yale-blue uppercase">{{ r.name }}</span>
+                                    </div>
+                                </td>
+                                <td
+                                    class="p-4 text-xs font-medium {% if r.status == 'Absent' %} text-black/20 {% else %} text-black/60 {% endif %}">
+                                    {{ r.time_in }}</td>
+                                <td class="p-4 text-[10px] font-bold text-black/40">#{{ selected_session.session_id }}
+                                </td>
+                                <td class="p-4">
+                                    <div class="flex items-center gap-2 max-w-[100px]">
+                                        <div
+                                            class="flex-1 h-1 bg-yale-blue/5 rounded-full overflow-hidden border border-yale-blue/10">
+                                            <div class="h-full bg-yale-blue transition-all duration-500"
+                                                style="width: {{ r.presence_per }}%"></div>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-yale-blue">{{ r.presence_per }}%</span>
+                                    </div>
+                                </td>
+                                <td class="p-4 text-right">
+                                    {% if r.status == 'Present' %}
+                                    <span
+                                        class="px-2 py-0.5 bg-green-500/10 text-green-600 text-[9px] font-bold rounded border border-green-500/20 uppercase">Present</span>
+                                    {% else %}
+                                    <span
+                                        class="px-2 py-0.5 bg-red-500/10 text-red-500 text-[9px] font-bold rounded border border-red-500/20 uppercase">Absent</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <script>
+                    const ctx = document.getElementById('attendanceChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Present', 'Absent'],
+                            datasets: [{
+                                data: [{{ stats.present }}, {{ stats.absent }}],
+                        backgroundColor: ['#00356B', 'rgba(0, 53, 107, 0.1)'],
+                        borderColor: 'rgba(255, 255, 255, 0.5)',
+                        borderWidth: 2,
+                        hoverOffset: 4
+                    }]
+                        },
+                        options: {
+                        cutout: '70%',
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                    });
+                </script>
+
+                {% else %}
+                <div class="h-[600px] flex flex-col items-center justify-center serene-card border-dashed">
+                    <div class="size-24 bg-yale-blue/5 rounded-full flex items-center justify-center mb-6">
+                        <span class="material-symbols-outlined text-yale-blue text-5xl opacity-20">bar_chart</span>
+                    </div>
+                    <h2 class="text-2xl font-bold text-yale-blue mb-2">No Session Selected</h2>
+                    <p class="text-black/40 font-bold uppercase tracking-widest text-xs">Please select a session from
+                        the list to view detailed analytical reports.</p>
+                </div>
+                {% endif %}
+            </div>
         </main>
         {% endif %}
 

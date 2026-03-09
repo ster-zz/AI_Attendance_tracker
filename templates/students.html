@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Students List - AI Classroom</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;1,9..40,400&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        .students-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .student-card {
+            background: rgba(255, 255, 255, 0.035);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(245, 158, 11, 0.1);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            text-align: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-card);
+        }
+
+        .student-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(245, 158, 11, 0.3);
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        .student-avatar {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, var(--clr-amber-dark), var(--clr-orange));
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-heading);
+            font-size: 28px;
+            font-weight: 700;
+            color: white;
+            box-shadow: 0 6px 12px rgba(234, 88, 12, 0.25);
+        }
+
+        .student-name {
+            font-family: var(--font-heading);
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--clr-text-primary);
+            margin-bottom: 6px;
+        }
+
+        .student-info {
+            font-size: 0.85rem;
+            color: var(--clr-text-muted);
+            margin-bottom: 20px;
+        }
+
+        .student-id {
+            display: inline-block;
+            padding: 4px 14px;
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            color: var(--clr-amber);
+            border-radius: var(--radius-pill);
+            font-size: 11px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+
+    <div class="app-wrapper">
+        <!-- Top Navigation -->
+        {% include 'partials/topbar.html' %}
+
+        <div class="app-layout">
+            <!-- Sidebar -->
+            {% include 'partials/sidebar.html' %}
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <div class="page-body">
+                    <div class="sec-title">👥 Student Database</div>
+
+                    <header
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <div>
+                            <h1 style="font-family: var(--font-heading); font-size: 24px;">Registered Students</h1>
+                            <p style="font-size: 13px; color: var(--clr-text-muted);">Managing profiles and face data
+                                encodings</p>
+                        </div>
+                        <button class="cam-btn" style="width: auto; padding: 10px 24px;"
+                            onclick="window.location.reload()">🔄 Sync Database</button>
+                    </header>
+
+                    <div class="students-grid">
+                        {% for student in students %}
+                        <div class="student-card">
+                            <div class="student-avatar">{{ student.name[0] | upper }}</div>
+                            <h3 class="student-name">{{ student.name }}</h3>
+                            <div class="student-info">Face Data: <span style="color: var(--clr-success);">●
+                                    Synchronized</span></div>
+                            <div class="student-id">ID: #{{ student.id }}</div>
+                        </div>
+                        {% else %}
+                        <div class="panel" style="grid-column: 1 / -1; padding: 80px; text-align: center;">
+                            <div style="font-size: 48px; margin-bottom: 20px;">👥</div>
+                            <h2 style="color: var(--clr-text-primary);">No Students Registered</h2>
+                            <p style="color: var(--clr-text-muted); margin-top: 10px;">Please add student photos to the
+                                <code>data/student_images/</code> directory to begin.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

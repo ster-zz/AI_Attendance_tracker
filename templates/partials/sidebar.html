@@ -22,6 +22,11 @@
             <span class="material-symbols-outlined">cloud_upload</span>
             Video Upload
         </a>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors {% if active_page == 'sessions' %}bg-primary/10 text-primary font-semibold shadow-sm{% else %}text-slate-600 hover:bg-slate-50 hover:text-secondary{% endif %}"
+            href="{{ url_for('view_sessions') }}">
+            <span class="material-symbols-outlined">history</span>
+            Sessions
+        </a>
         <a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors {% if active_page == 'students' %}bg-primary/10 text-primary font-semibold shadow-sm{% else %}text-slate-600 hover:bg-slate-50 hover:text-secondary{% endif %}"
             href="{{ url_for('student_directory_page') }}">
             <span class="material-symbols-outlined">group</span>
@@ -35,6 +40,16 @@
 
         <div class="pt-8 pb-4 px-4 text-xs font-bold text-slate-400 uppercase tracking-wider">System</div>
 
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors {% if active_page == 'incidents' %}bg-primary/10 text-primary font-semibold shadow-sm{% else %}text-slate-600 hover:bg-slate-50 hover:text-secondary{% endif %}"
+            href="{{ url_for('view_incidents') }}">
+            <span class="material-symbols-outlined">warning</span>
+            Incidents
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors {% if active_page == 'database' %}bg-primary/10 text-primary font-semibold shadow-sm{% else %}text-slate-600 hover:bg-slate-50 hover:text-secondary{% endif %}"
+            href="{{ url_for('view_database') }}">
+            <span class="material-symbols-outlined">storage</span>
+            Database
+        </a>
         <a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors {% if active_page == 'settings' %}bg-primary/10 text-primary font-semibold shadow-sm{% else %}text-slate-600 hover:bg-slate-50 hover:text-secondary{% endif %}"
             href="{{ url_for('settings_page') }}">
             <span class="material-symbols-outlined">settings</span>

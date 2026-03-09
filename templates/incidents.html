@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Incidents — AI Classroom Dashboard</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;1,9..40,400&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        /* ── Incidents Page Specific Styles ── */
+        .incidents-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+
+        .incidents-header h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--clr-text-primary);
+            margin: 0;
+        }
+
+        .incidents-header .badge-count {
+            background: rgba(248, 113, 113, 0.15);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            color: #f87171;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 99px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--clr-text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--clr-accent); }
+
+        /* ── Incident Cards Grid ── */
+        .incidents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 18px;
+        }
+
+        .incident-card {
+            background: var(--clr-glass);
+            border: 1px solid var(--clr-border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .incident-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+        }
+
+        .incident-card-img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            display: block;
+            background: rgba(255,255,255,0.04);
+        }
+
+        .incident-card-img-placeholder {
+            width: 100%;
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            background: rgba(248, 113, 113, 0.06);
+            color: rgba(248, 113, 113, 0.5);
+        }
+
+        .incident-card-body {
+            padding: 14px 16px;
+        }
+
+        .incident-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 3px 10px;
+            border-radius: 99px;
+            background: rgba(248, 113, 113, 0.15);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            color: #f87171;
+            margin-bottom: 8px;
+        }
+
+        .incident-student {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--clr-text-primary);
+            margin-bottom: 4px;
+        }
+
+        .incident-meta {
+            font-size: 0.78rem;
+            color: var(--clr-text-secondary);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        /* ── Empty State ── */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--clr-text-secondary);
+        }
+        .empty-state .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+        .empty-state h3 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--clr-text-primary);
+            margin-bottom: 6px;
+        }
+        .empty-state p { font-size: 0.85rem; }
+    </style>
+</head>
+
+<body>
+
+    <!-- Background orbs -->
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+
+    <div class="app-wrapper">
+
+        <!-- Top Navigation -->
+        {% include 'partials/topbar.html' %}
+
+        <!-- Flash Alert -->
+        <div class="alerts" style="position: absolute; top: 60px; right: 20px; z-index: 200;">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash-bar"
+                style="border-radius: var(--radius-sm); box-shadow: var(--shadow-glass); {% if category == 'error' %}background: rgba(248,113,113,0.09); border-color: rgba(248,113,113,0.22); color: var(--clr-error);{% endif %}">
+                <span>{% if category == 'success' %}✓{% elif category == 'error' %}✖{% else %}!{% endif %}</span>
+                <span style="flex:1;">{{ message }}</span>
+                <button class="flash-dismiss" onclick="this.parentElement.remove()">✕ Dismiss</button>
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+        </div>
+
+        <!-- App Layout -->
+        <div class="app-layout">
+
+            <!-- Sidebar -->
+            {% include 'partials/sidebar.html' %}
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <div class="page-body">
+
+                    <!-- Back link -->
+                    <a href="{{ url_for('index') }}" class="back-link">← Back to Dashboard</a>
+
+                    <!-- Page Header -->
+                    <div class="incidents-header">
+                        <h1>🚨 Incidents Log</h1>
+                        <span class="badge-count">{{ incidents|length }} records</span>
+                    </div>
+
+                    <!-- Incidents Notice -->
+                    <div class="flash-bar" style="margin-bottom: 24px; background: rgba(251,191,36,0.07); border-color: rgba(251,191,36,0.25); color: #fbbf24;">
+                        <span>⚠</span>
+                        <span style="flex:1;">Incidents are logged when a recognised student is detected <strong>without a visible ID card</strong>. Each record includes a screenshot captured at the time of detection.</span>
+                    </div>
+
+                    <!-- Grid of Incident Cards -->
+                    {% if incidents %}
+                    <div class="incidents-grid">
+                        {% for inc in incidents %}
+                        <div class="incident-card">
+
+                            <!-- Screenshot -->
+                            {% if inc.image_path %}
+                            <img
+                                src="{{ url_for('static', filename=inc.image_path.replace('static/', '')) }}"
+                                alt="Incident screenshot"
+                                class="incident-card-img"
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                            >
+                            <div class="incident-card-img-placeholder" style="display:none;">📷</div>
+                            {% else %}
+                            <div class="incident-card-img-placeholder">📷</div>
+                            {% endif %}
+
+                            <!-- Card Body -->
+                            <div class="incident-card-body">
+                                <div class="incident-type-badge">
+                                    🪪 {{ inc.incident_type.replace('_', ' ').title() }}
+                                </div>
+                                <div class="incident-student">{{ inc.student_name }}</div>
+                                <div class="incident-meta">
+                                    <span>🕐 {{ inc.timestamp }}</span>
+                                    <span>📋 Session #{{ inc.session_id }}</span>
+                                </div>
+                            </div>
+
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    {% else %}
+                    <!-- Empty State -->
+                    <div class="empty-state">
+                        <div class="empty-icon">✅</div>
+                        <h3>No Incidents Recorded</h3>
+                        <p>All students have been compliant so far. Incidents appear here when a student is recognised without a visible ID card.</p>
+                    </div>
+                    {% endif %}
+
+                </div><!-- /page-body -->
+            </div><!-- /content-area -->
+
+        </div><!-- /app-layout -->
+
+    </div><!-- /app-wrapper -->
+
+</body>
+
+</html>

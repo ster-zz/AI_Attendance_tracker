@@ -11,11 +11,25 @@ import torch
 from ultralytics import YOLO
 
 # Strongly restrict PyTorch from consuming 100% of all CPU cores
-# This leaves the remaining cores free for the OS to run the camera drivers smoothly
 torch.set_num_threads(2)
 
 from config import DATABASE_PATH
-from database import get_db_connection, is_session_active, get_current_session_id
+from database import get_db_connection, is_session_active, get_current_session_id, log_incident
+
+# AI detection modules
+try:
+    from models.id_detection_module import detect_id_card, save_incident_image
+    from models.sleep_detection_module import check_sleep
+except ImportError:
+    from id_detection_module import detect_id_card, save_incident_image
+    from sleep_detection_module import check_sleep
+
+# ── Per-student incident cooldowns ───────────────────────────────────────────
+_id_incident_cooldown = {}      # {student_name: datetime_of_last_incident}
+_sleep_incident_cooldown = {}   # {student_name: datetime_of_last_incident}
+_student_compliance_status = {}  # {student_name: {'id': bool, 'sleep': bool}}
+ID_INCIDENT_COOLDOWN_SECONDS = 60
+SLEEP_INCIDENT_COOLDOWN_SECONDS = 120 # Log sleeping less frequently
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -23,30 +37,20 @@ STUDENT_IMAGES_DIR = os.path.join(BASE_DIR, 'data', 'student_images')
 ENCODINGS_FILE = os.path.join(BASE_DIR, 'data', 'encodings.pkl')
 YOLO_MODEL_PATH = os.path.join(BASE_DIR, 'models', 'yolov8n-face.pt')
 
-# Load the YOLO model once globally using Ultralytics
+# Load the YOLO model once globally
 if os.path.exists(YOLO_MODEL_PATH):
     face_detector = YOLO(YOLO_MODEL_PATH)
 else:
-    print(f"CRITICAL WARNING: YOLOv8 PyTorch model not found at {YOLO_MODEL_PATH}. Recognition will fail.")
+    print(f"CRITICAL WARNING: YOLOv8 model not found at {YOLO_MODEL_PATH}.")
     face_detector = None
 
 def encode_known_faces():
-    """
-    Loads images from data/student_images/, extracts Face Encodings 
-    and saves them to data/encodings.pkl.
-    Does NOT reconstruct the database, merely provides encodings.
-    """
+    """Extracts face encodings and saves to pkl."""
     if not os.path.exists(STUDENT_IMAGES_DIR):
-        print(f"Warning: {STUDENT_IMAGES_DIR} not found.")
         return
-
     known_encodings = []
     known_names = []
-    
-    # Track the last modified times of images to know which ones we've already processed
     image_mtimes = {}
-    
-    # Load existing encodings if they exist to prevent recalculating old images
     if os.path.exists(ENCODINGS_FILE):
         try:
             with open(ENCODINGS_FILE, 'rb') as f:
@@ -54,119 +58,45 @@ def encode_known_faces():
                 known_encodings = data.get("encodings", [])
                 known_names = data.get("names", [])
                 image_mtimes = data.get("image_mtimes", {})
-        except Exception as e:
-            print(f"Error loading existing encodings: {e}. Starting fresh.")
-    
-    new_encodings_added = 0
-    
-    # Iterate through all files in the student images directory
+        except: pass
+    new_added = 0
     for root, _, files in os.walk(STUDENT_IMAGES_DIR):
         for file in files:
-            if file.endswith(('.jpg', '.jpeg', '.png')):
+            if file.lower().endswith(('.jpg', '.jpeg', '.png')):
                 path = os.path.join(root, file)
-                
-                # Get the last modified time of the file
-                current_mtime = os.path.getmtime(path)
-                
-                # Check if we already processed this exact file and it hasn't changed
-                # We use a unique key: combo of folder name + file name to prevent collision
+                mtime = os.path.getmtime(path)
                 name = os.path.basename(root)
-                file_key = f"{name}_{file}"
-                
-                if file_key in image_mtimes and image_mtimes[file_key] == current_mtime:
-                    # Skip it! It's already successfully encoded in thepkl file
+                key = f"{name}_{file}"
+                if key in image_mtimes and image_mtimes[key] == mtime:
                     continue
-                    
                 try:
-                    # Load image and encode
-                    image = face_recognition.load_image_file(path)
-                    
-                    # Convert to RGB (OpenCV uses BGR, face_recognition expects RGB)
-                    encodings = face_recognition.face_encodings(image)
-                    
-                    if len(encodings) > 0:
-                        known_encodings.append(encodings[0])
+                    img = face_recognition.load_image_file(path)
+                    encs = face_recognition.face_encodings(img)
+                    if encs:
+                        known_encodings.append(encs[0])
                         known_names.append(name)
-                        image_mtimes[file_key] = current_mtime # Save timestamp
-                        new_encodings_added += 1
-                        print(f"Encoded NEW face: {name} (Image: {file})")
-                    else:
-                        print(f"Warning: No face found in {file}")
-                
-                except Exception as e:
-                    print(f"Error processing {file}: {e}")
-
-    # Only save if we actually found something new
-    if new_encodings_added > 0:
-        data = {"encodings": known_encodings, "names": known_names, "image_mtimes": image_mtimes}
+                        image_mtimes[key] = mtime
+                        new_added += 1
+                except: pass
+    if new_added > 0:
         with open(ENCODINGS_FILE, 'wb') as f:
-            pickle.dump(data, f)
-        print(f"Encodings saved. Added {new_encodings_added} new encodings. Total: {len(known_names)}.")
-    else:
-        print(f"No new images to encode. Total existing encodings: {len(known_names)}.")
+            pickle.dump({"encodings": known_encodings, "names": known_names, "image_mtimes": image_mtimes}, f)
 
 def load_encodings():
-    """
-    Loads saved face encodings from data/encodings.pkl.
-    """
     if os.path.exists(ENCODINGS_FILE):
         with open(ENCODINGS_FILE, 'rb') as f:
             data = pickle.load(f)
         return data["encodings"], data["names"]
-    
-    print("No encodings found. Please run encode_known_faces() first.")
     return [], []
 
 def mark_attendance(name):
-    """
-    Marks the student "Present" ONLY IF:
-    1. A session is currently ACTIVE.
-    2. The student hasn't ALREADY been marked present in this session.
-    """
-    if not is_session_active():
-        # Do nothing if no session is active.
-        return
-        
+    if not is_session_active(): return
+    from database import mark_attendance_for_session
     session_id = get_current_session_id()
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # First: We need the student's ID from the Students table based on their name.
-    # Note: If student is not in DB yet, we skip or add placeholder (handling gracefully)
-    cursor.execute("SELECT id FROM Students WHERE name = ?", (name,))
-    student_record = cursor.fetchone()
-    
-    if not student_record:
-        # Graceful handling if image exists but DB entry doesn't
-        print(f"Student {name} recognized but not found in Students database. Skipping attendance.")
-        conn.close()
-        return
-        
-    student_id = student_record['id']
-    
-    # Second: Check if attendance already exists for this session AND this student
-    cursor.execute('''
-        SELECT id FROM Attendance 
-        WHERE session_id = ? AND student_id = ?
-    ''', (session_id, student_id))
-    
-    if cursor.fetchone() is None:
-        # Not marked yet! Insert now.
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        cursor.execute('''
-            INSERT INTO Attendance (session_id, student_id, status, reason, timestamp)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (session_id, student_id, "Present", "Face Recognition", timestamp))
-        conn.commit()
-        print(f"Attendance MARKED PRESENT for {name} at {timestamp}.")
-    else:
-        # Already marked
-        pass
-        
-    conn.close()
+    if session_id:
+        mark_attendance_for_session(name, session_id)
 
-# Threading Global Variables
+# Threading globals
 current_frame = None
 latest_face_locations = []
 latest_face_names = []
@@ -174,14 +104,34 @@ known_face_encodings_global = []
 known_face_names_global = []
 thread_running = False
 ai_is_processing = False
+latest_processed_frame = None
+frame_lock = threading.Lock()
+
+def gen_frames():
+    """Generator function for streaming frames to the web UI."""
+    global latest_processed_frame
+    while True:
+        with frame_lock:
+            if latest_processed_frame is None:
+                # Provide a black frame if no stream is active
+                placeholder = np.zeros((480, 640, 3), dtype=np.uint8)
+                cv2.putText(placeholder, "Camera Feed Offline", (150, 240), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                ret, buffer = cv2.imencode('.jpg', placeholder)
+            else:
+                ret, buffer = cv2.imencode('.jpg', latest_processed_frame)
+            
+            if not ret:
+                continue
+            frame_bytes = buffer.tobytes()
+        
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        time.sleep(0.04) # Cap at ~25 FPS
 
 def process_ai_frame():
-    """
-    Background Thread: Continuously grabs the latest frame from the webcam,
-    runs the heavy PyTorch YOLOv8 & dlib networks on it, and updates bounding boxes.
-    Runs completely independently of the webcam render loop to prevent lag.
-    """
     global current_frame, latest_face_locations, latest_face_names, thread_running, ai_is_processing
+    last_recognition_time = 0
     
     while thread_running:
         if current_frame is None or ai_is_processing:
@@ -189,226 +139,218 @@ def process_ai_frame():
             continue
             
         ai_is_processing = True
-        
-        # Clone frame securely for background processing
+        now = time.time()
         frame_to_process = current_frame.copy()
         
-        # Resize frame to 1/2 size for faster face recognition processing
-        small_frame = cv2.resize(frame_to_process, (0, 0), fx=0.5, fy=0.5)
-
-        # Convert BGR (OpenCV) to RGB (face_recognition) for full-res encoding later
-        rgb_full_frame = cv2.cvtColor(frame_to_process, cv2.COLOR_BGR2RGB)
-        
-        # Use YOLOv8 PyTorch for Face Location Detection on the FAST small frame
-        temp_face_locations = []
-        if face_detector is not None:
-            # Run YOLO inference
-            results = face_detector(small_frame, verbose=False)
+        # 1. 🐢 SLOW PATH: IDENTIFICATION (Every 2 seconds)
+        # Identifies WHO is in the frame.
+        if now - last_recognition_time >= 2.0:
+            small_frame = cv2.resize(frame_to_process, (0, 0), fx=0.5, fy=0.5)
+            rgb_full = cv2.cvtColor(frame_to_process, cv2.COLOR_BGR2RGB)
             
-            # Extract bounding boxes from YOLO results
-            for box in results[0].boxes.xyxy: # returns [x_min, y_min, x_max, y_max]
-                x_min, y_min, x_max, y_max = box.tolist()
-                
-                # Convert to integer and scale UP to match the full-resolution frame
-                x_min = int(x_min * 2)
-                y_min = int(y_min * 2)
-                x_max = int(x_max * 2)
-                y_max = int(y_max * 2)
-                
-                # Convert YOLO format to CSS (top, right, bottom, left) required by face_recognition
-                temp_face_locations.append((y_min, x_max, y_max, x_min))
-        
-        # Pass the 100% resolution frame and 100% scale face locations into Dlib
-        # This fixes the accuracy bug where Dlib was getting corrupted 50% resolution geometry
-        temp_face_encodings = face_recognition.face_encodings(rgb_full_frame, temp_face_locations, num_jitters=1)
-
-        temp_face_names = []
-        for face_encoding in temp_face_encodings:
-            # Compare against known encodings with STRICT tolerance (0.55 instead of default 0.60)
-            matches = face_recognition.compare_faces(known_face_encodings_global, face_encoding, tolerance=0.55)
-            name = "Unknown"
-
-            # Use the known face with the smallest distance to the new face
-            face_distances = face_recognition.face_distance(known_face_encodings_global, face_encoding)
-            if len(face_distances) > 0:
-                best_match_index = np.argmin(face_distances)
-                if matches[best_match_index]:
-                    name = known_face_names_global[best_match_index]
-                    
-                    # --- THE CORE ATTENDANCE TRIGGER ---
-                    # If a match is found, only mark if the session is active.
-                    if name != "Unknown":
+            temp_locs = []
+            if face_detector:
+                results = face_detector(small_frame, verbose=False)
+                for box in results[0].boxes.xyxy:
+                    x1, y1, x2, y2 = box.tolist()
+                    temp_locs.append((int(y1*2), int(x2*2), int(y2*2), int(x1*2)))
+            
+            temp_encs = face_recognition.face_encodings(rgb_full, temp_locs, num_jitters=1)
+            temp_names = []
+            for i, enc in enumerate(temp_encs):
+                matches = face_recognition.compare_faces(known_face_encodings_global, enc, tolerance=0.55)
+                name = "Unknown"
+                dists = face_recognition.face_distance(known_face_encodings_global, enc)
+                if len(dists) > 0:
+                    idx = np.argmin(dists)
+                    if matches[idx]:
+                        name = known_face_names_global[idx]
                         mark_attendance(name)
-
-            temp_face_names.append(name)
+                temp_names.append(name)
             
-        # Safely overwrite globals with new frame data
-        latest_face_locations = temp_face_locations
-        latest_face_names = temp_face_names
+            latest_face_locations, latest_face_names = temp_locs, temp_names
+            last_recognition_time = now
+
+        # 2. ⚡ FAST PATH: COMPLIANCE (Every 0.2 seconds)
+        # Monitors SLEEP and ID status for recognized students at high frequency.
+        for i, name in enumerate(latest_face_names):
+            if name != "Unknown" and i < len(latest_face_locations):
+                face_bbox = latest_face_locations[i]
+                # High-frequency compliance checks
+                _check_id_card(frame_to_process, name, face_bbox)
+                _check_for_sleep(frame_to_process, name, face_bbox)
         
         ai_is_processing = False
-        time.sleep(3) # Wait 3 seconds between processing frames to massively reduce CPU load
+        # Small sleep ensures 5-10 checks per second for very high accuracy
+        time.sleep(0.1)
 
+def _check_id_card(frame, student_name, face_bbox):
+    global _id_incident_cooldown
+    if face_bbox is None: return
+    now = datetime.now()
+    if student_name in _id_incident_cooldown:
+        if (now - _id_incident_cooldown[student_name]).total_seconds() < ID_INCIDENT_COOLDOWN_SECONDS:
+            return
+    if not detect_id_card(frame, face_bbox):
+        _do_log_incident(frame, student_name, 'no_id_card')
+        _id_incident_cooldown[student_name] = now
+        _student_compliance_status.setdefault(student_name, {})['id'] = False
+    else:
+        _id_incident_cooldown.pop(student_name, None)
+        _student_compliance_status.setdefault(student_name, {})['id'] = True
+
+def _check_for_sleep(frame, student_name, face_bbox):
+    global _sleep_incident_cooldown
+    if face_bbox is None: return
+    now = datetime.now()
+    if student_name in _sleep_incident_cooldown:
+        if (now - _sleep_incident_cooldown[student_name]).total_seconds() < SLEEP_INCIDENT_COOLDOWN_SECONDS:
+            return
+    if check_sleep(frame, face_bbox, student_name):
+        _do_log_incident(frame, student_name, 'sleeping')
+        _sleep_incident_cooldown[student_name] = now
+        _student_compliance_status.setdefault(student_name, {})['sleep'] = True
+    else:
+        _student_compliance_status.setdefault(student_name, {})['sleep'] = False
+
+def _do_log_incident(frame, student_name, incident_type):
+    """Internal helper to save image and log to DB."""
+    img_path = save_incident_image(frame, student_name, incident_type)
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM Students WHERE name = ?", (student_name,))
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        sid = get_current_session_id()
+        if sid:
+            log_incident(sid, row['id'], incident_type, img_path)
 
 def start_face_recognition():
-    """
-    Main Thread: Starts the live webcam render loop.
-    Launches the background AI thread. Runs at 30fps.
-    """
-    global current_frame, latest_face_locations, latest_face_names, known_face_encodings_global, known_face_names_global, thread_running
-    
-    # 1. Load Encodings (Do not re-encode)
+    global current_frame, latest_face_locations, latest_face_names, known_face_encodings_global, known_face_names_global, thread_running, latest_processed_frame
     known_face_encodings_global, known_face_names_global = load_encodings()
     
-    if not known_face_encodings_global:
-        print("No encodings available. Cannot start recognition.")
-        return
-
-    # 2. Start Video Capture using Windows DirectShow for instantly unblocked performance
-    video_capture = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    print("[DEBUG] Attempting to open camera...")
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640); cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     
-    # Force the camera physical hardware to a lower resolution to prevent buffer lag
-    video_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-    video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-    video_capture.set(cv2.CAP_PROP_FPS, 30)
-    
-    # Check if webcam opened successfully
-    if not video_capture.isOpened():
-        print("Error: Could not access the webcam.")
+    if not cap.isOpened(): 
+        print("[ERROR] Could not open camera. It might be in use by another process.")
         return
-
-    print("Live Recognition Started. Press 'q' to quit.")
-
-    # 3. Launch the Background AI Thread
+        
+    print("[DEBUG] Camera opened successfully.")
     thread_running = True
-    ai_thread = threading.Thread(target=process_ai_frame, daemon=True)
-    ai_thread.start()
+    ai_t = threading.Thread(target=process_ai_frame, daemon=True); ai_t.start()
+    
+    if not is_session_active():
+        print("[DEBUG] No active session detected when starting recognition.")
 
     while is_session_active():
-        # Grab a single frame
-        ret, frame = video_capture.read()
-        if not ret:
-            print("Failed to grab frame.")
-            break
-            
-        # Push frame to global cache for the AI thread
+        ret, frame = cap.read()
+        if not ret: break
         current_frame = frame.copy()
-
-        # Render exactly what the AI thread most recently discovered
-        for (top, right, bottom, left), name in zip(latest_face_locations, latest_face_names):
-            # Draw a box around the face (No scaling needed, AI thread outputs native 100% boxes now)
-            cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
-
-            # Draw a label with a name below the face
-            cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 255, 0), cv2.FILLED)
-            font = cv2.FONT_HERSHEY_DUPLEX
-            cv2.putText(frame, name, (left + 6, bottom - 6), font, 0.7, (255, 255, 255), 1)
+        
+        # Create a copy for the web UI annotations
+        display_frame = frame.copy()
+        
+        for (t, r, b, l), name in zip(latest_face_locations, latest_face_names):
+            status = _student_compliance_status.get(name, {'id': True, 'sleep': False})
             
-        # Visual Indicator for Active Session
-        font = cv2.FONT_HERSHEY_DUPLEX
-        if is_session_active():
-            cv2.putText(frame, "STATUS: RECORDING ATTENDANCE", (20, 30), font, 0.6, (0, 255, 0), 1)
-        else:
-            cv2.putText(frame, "STATUS: IGNORED (NO ACTIVE SESSION)", (20, 30), font, 0.6, (0, 0, 255), 1)
-
-        # Display the resulting image flawlessly at max fps
-        cv2.imshow('Classroom Face Recognition [Phase 3]', frame)
-
-        # Hit 'q' on the keyboard to quit!
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+            color = (0, 255, 0) # Green-Default
+            label = name
+            
+            if status.get('sleep'):
+                color = (0, 0, 255) # Red for Sleeping
+                label = f"{name} | SLEEPING"
+            elif not status.get('id'):
+                color = (0, 165, 255) # Orange for No ID
+                label = f"{name} | NO ID"
+                
+            cv2.rectangle(display_frame, (l, t), (r, b), color, 2)
+            cv2.rectangle(display_frame, (l, b - 20), (r, b), color, cv2.FILLED)
+            cv2.putText(display_frame, label, (l + 5, b - 5), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255), 1)
+            
+        # Update the global frame for web streaming
+        with frame_lock:
+            latest_processed_frame = display_frame
+            
+        # hit 'q' via terminal input not needed for web, but we keep the loop logic
+        if not is_session_active():
             break
+        time.sleep(0.01)
 
-    # Gracefully shut down threads and camera
-    thread_running = False
-    ai_thread.join(timeout=2.0)
-    video_capture.release()
-    cv2.destroyAllWindows()
+    thread_running = False; ai_t.join(timeout=2.0)
+    cap.release()
+    with frame_lock:
+        latest_processed_frame = None
 
 def process_uploaded_video_thread(filepath, session_id):
-    """
-    Background Thread: Processes an uploaded class recording.
-    Crucial constraints:
-    - Skips frames aggressively (e.g. 1 frame every 3 seconds) to prevent CPU gridlock.
-    - Uses database.py's mark_attendance_for_session() instead of the live active session.
-    - Auto-deletes the .mp4 file permanently once finished to save hard drive space.
-    """
-    from database import mark_attendance_for_session
-    
-    # 1. Load Encodings
+    """Processes an uploaded video for attendance."""
+    from database import mark_attendance_for_session, finalize_session
     global known_face_encodings_global, known_face_names_global
     if not known_face_encodings_global:
         known_face_encodings_global, known_face_names_global = load_encodings()
-
     if not known_face_encodings_global:
-        print("No encodings available. Deleting uploaded file and aborting.")
-        if os.path.exists(filepath):
-            os.remove(filepath)
-        return
+        if os.path.exists(filepath): os.remove(filepath); return
 
-    # 2. Open Video File
-    video_capture = cv2.VideoCapture(filepath)
-    if not video_capture.isOpened():
-        print(f"Error: Could not open uploaded video file {filepath}")
-        if os.path.exists(filepath):
-            os.remove(filepath)
-        return
-
-    fps = video_capture.get(cv2.CAP_PROP_FPS)
-    if fps <= 0:
-        fps = 30 # fallback if metadata is corrupt
-        
-    process_interval_seconds = 3 # Analyze 1 frame every 3 seconds
-    frame_skip_count = int(fps * process_interval_seconds)
+    cap = cv2.VideoCapture(filepath)
+    if not cap.isOpened():
+        if os.path.exists(filepath): os.remove(filepath); return
     
-    print(f"[Video Analysis] Started for session {session_id}. Path: {filepath}")
+    # Calculate video duration for accurate session logging
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    duration_seconds = total_frames / fps
     
-    frame_count = 0
+    # Analyze one frame every 3 seconds of video time
+    skip_interval_seconds = 3
+    skip_frames = int(fps * skip_interval_seconds)
+    count = 0
+    
+    print(f"Analyzing uploaded video for Session {session_id} ({int(duration_seconds)}s duration)...")
+    
     while True:
-        ret, frame = video_capture.read()
-        if not ret:
-            break # End of video
-            
-        frame_count += 1
+        ret, frame = cap.read()
+        if not ret: break
+        count += 1
+        if count % skip_frames != 0: continue
         
-        # Skip frames aggressively
-        if frame_count % frame_skip_count != 0:
-            continue
-            
-        # Process this frame!
-        small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
-        rgb_full_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        small = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        locs = []
+        if face_detector:
+            res = face_detector(small, verbose=False)
+            for box in res[0].boxes.xyxy:
+                x1, y1, x2, y2 = box.tolist()
+                locs.append((int(y1*2), int(x2*2), int(y2*2), int(x1*2)))
         
-        temp_face_locations = []
-        if face_detector is not None:
-            results = face_detector(small_frame, verbose=False)
-            for box in results[0].boxes.xyxy:
-                x_min, y_min, x_max, y_max = box.tolist()
-                x_min = int(x_min * 2)
-                y_min = int(y_min * 2)
-                x_max = int(x_max * 2)
-                y_max = int(y_max * 2)
-                temp_face_locations.append((y_min, x_max, y_max, x_min))
-        
-        # We only pass locations to speed up dlib
-        if len(temp_face_locations) > 0:
-            temp_face_encodings = face_recognition.face_encodings(rgb_full_frame, temp_face_locations, num_jitters=1)
-            
-            for face_encoding in temp_face_encodings:
-                matches = face_recognition.compare_faces(known_face_encodings_global, face_encoding, tolerance=0.55)
-                face_distances = face_recognition.face_distance(known_face_encodings_global, face_encoding)
-                
-                if len(face_distances) > 0:
-                    best_match_index = np.argmin(face_distances)
-                    if matches[best_match_index]:
-                        name = known_face_names_global[best_match_index]
-                        # Mark them present in database for this specific historic session
-                        mark_attendance_for_session(name, session_id)
-
-    # 3. Cleanup! Release memory and Auto-Delete the massive .mp4 file
-    video_capture.release()
+        if locs:
+            encs = face_recognition.face_encodings(rgb, locs, num_jitters=1)
+            for enc in encs:
+                matches = face_recognition.compare_faces(known_face_encodings_global, enc, tolerance=0.55)
+                dists = face_recognition.face_distance(known_face_encodings_global, enc)
+                if len(dists) > 0:
+                    idx = np.argmin(dists)
+                    if matches[idx]:
+                        # Mark attendance with the 3s increment matching our skip interval
+                        mark_attendance_for_session(known_face_names_global[idx], session_id, increment=skip_interval_seconds)
+    
+    cap.release()
+    
+    # Update the session with an accurate end time based on the video duration
+    # This ensures 75% attendance logic works correctly for historical sessions
+    from datetime import timedelta
     try:
-        if os.path.exists(filepath):
-            os.remove(filepath)
-            print(f"[Video Analysis] Complete for session {session_id}. File {filepath} permanently deleted.")
+        from database import get_db_connection
+        conn = get_db_connection()
+        row = conn.execute("SELECT start_time FROM Sessions WHERE session_id = ?", (session_id,)).fetchone()
+        if row:
+            start_dt = datetime.strptime(row['start_time'], '%H:%M:%S')
+            end_dt = start_dt + timedelta(seconds=duration_seconds)
+            finalize_session(session_id, end_dt.strftime('%H:%M:%S'))
+        conn.close()
     except Exception as e:
-        print(f"[Video Analysis] Warning: Could not delete {filepath} - {e}")
+        print(f"Error finalizing session: {e}")
+
+    if os.path.exists(filepath): os.remove(filepath)
+    print(f"Analysis complete for Session {session_id}.")

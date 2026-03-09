@@ -17,7 +17,7 @@
                     <th class="px-6 py-3 font-bold">NAME</th>
                     <th class="px-6 py-3 font-bold">TIME IN</th>
                     <th class="px-6 py-3 font-bold">STATUS</th>
-                    <th class="px-6 py-3 font-bold">MATCH SCORE</th>
+                    <th class="px-6 py-3 font-bold">PRESENCE %</th>
                 </tr>
             </thead>
             <tbody class="text-[11px] divide-y divide-yale-blue/5">
@@ -29,20 +29,23 @@
                     <td class="px-6 py-3 text-black">{{ record.time_in }}</td>
                     <td class="px-6 py-3">
                         {% if record.status == 'Present' %}
-                        <span class="bg-yale-blue text-white px-2 py-0.5 rounded text-[10px] font-bold">PRESENT</span>
-                        {% elif record.status == 'Late' %}
+                        <span class="bg-green-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">PRESENT</span>
+                        {% elif 'Partial' in record.status %}
                         <span
-                            class="bg-vanilla-moonstone border border-yale-blue/20 text-yale-blue px-2 py-0.5 rounded text-[10px] font-bold">LATE</span>
+                            class="bg-amber-500 text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase">PARTIAL</span>
                         {% else %}
                         <span class="bg-red-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">ABSENT</span>
                         {% endif %}
                     </td>
-                    <td class="px-6 py-3 font-display font-bold text-yale-blue">
-                        {% if record.status == 'Present' or record.status == 'Late' %}
-                        98.5%
-                        {% else %}
-                        N/A
-                        {% endif %}
+                    <td class="px-6 py-3">
+                        <div class="flex items-center gap-2">
+                            <div
+                                class="flex-1 h-1.5 bg-yale-blue/5 rounded-full overflow-hidden border border-yale-blue/10 max-w-[60px]">
+                                <div class="h-full bg-yale-blue transition-all duration-500"
+                                    style="width: {{ record.presence_per }}%"></div>
+                            </div>
+                            <span class="font-display font-bold text-yale-blue">{{ record.presence_per }}%</span>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}

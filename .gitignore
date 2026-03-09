@@ -7,8 +7,12 @@ __pycache__/
 venv/
 env/
 ENV/
+venv312/
 env.bak/
 venv.bak/
+
+# Python wheel installer files
+*.whl
 
 # SQLite databases
 *.db

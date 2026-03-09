@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }} - AI Classroom</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        .placeholder-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            margin-top: 40px;
+            padding: 40px;
+        }
+
+        .placeholder-icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+            opacity: 0.5;
+        }
+
+        .placeholder-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #fff;
+        }
+
+        .placeholder-text {
+            color: rgba(255, 255, 255, 0.5);
+            max-width: 400px;
+            line-height: 1.6;
+        }
+
+        .btn-back {
+            margin-top: 32px;
+        }
+    </style>
+</head>
+
+<body class="dashboard-theme">
+    <div class="app-container">
+        <!-- Sidebar -->
+        {% include 'partials/sidebar.html' %}
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="placeholder-container">
+                <div class="placeholder-icon">{{ page_icon }}</div>
+                <h1 class="placeholder-title">{{ page_title }}</h1>
+                <p class="placeholder-text">This module is part of a future phase. We are currently focusing on
+                    perfecting Phase 3 (ID Detection) and Phase 4 (Sleep Detection).</p>
+                <a href="/" class="btn btn-primary btn-back">Return to Overview</a>
+            </div>
+        </main>
+    </div>
+</body>
+
+</html>

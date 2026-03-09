@@ -10,22 +10,38 @@
             </div>
         </div>
 
-        <nav class="hidden lg:flex items-center gap-6 ml-4 flex-1">
-            <a class="flex items-center gap-2 font-display text-xs font-bold uppercase transition-colors {% if active_page == 'dashboard' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
+        <nav class="hidden xl:flex items-center gap-4 flex-1">
+            <a class="flex items-center gap-1 font-display text-[10px] font-bold uppercase transition-colors {% if active_page == 'dashboard' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
                 href="{{ url_for('index') }}">
-                <span class="material-symbols-outlined text-lg">dashboard</span> Dashboard
+                <span class="material-symbols-outlined text-base">dashboard</span> Dashboard
             </a>
-            <a class="flex items-center gap-2 font-display text-xs font-bold uppercase transition-colors {% if active_page == 'upload' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
+            <a class="flex items-center gap-1 font-display text-[10px] font-bold uppercase transition-colors {% if active_page == 'live' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
+                href="{{ url_for('live_camera_page') }}">
+                <span class="material-symbols-outlined text-base">videocam</span> Live
+            </a>
+            <a class="flex items-center gap-1 font-display text-[10px] font-bold uppercase transition-colors {% if active_page == 'upload' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
                 href="{{ url_for('video_upload_page') }}">
-                <span class="material-symbols-outlined text-lg">cloud_upload</span> Upload
+                <span class="material-symbols-outlined text-base">cloud_upload</span> Upload
             </a>
-            <a class="flex items-center gap-2 font-display text-xs font-bold uppercase transition-colors {% if active_page == 'students' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
+            <a class="flex items-center gap-1 font-display text-[10px] font-bold uppercase transition-colors {% if active_page == 'sessions' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
+                href="{{ url_for('view_sessions') }}">
+                <span class="material-symbols-outlined text-base">history</span> Sessions
+            </a>
+            <a class="flex items-center gap-1 font-display text-[10px] font-bold uppercase transition-colors {% if active_page == 'students' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
                 href="{{ url_for('student_directory_page') }}">
-                <span class="material-symbols-outlined text-lg">group</span> Directory
+                <span class="material-symbols-outlined text-base">group</span> Students
             </a>
-            <a class="flex items-center gap-2 font-display text-xs font-bold uppercase transition-colors {% if active_page == 'reports' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
+            <a class="flex items-center gap-1 font-display text-[10px] font-bold uppercase transition-colors {% if active_page == 'incidents' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
+                href="{{ url_for('view_incidents') }}">
+                <span class="material-symbols-outlined text-base">warning</span> Incidents
+            </a>
+            <a class="flex items-center gap-1 font-display text-[10px] font-bold uppercase transition-colors {% if active_page == 'database' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
+                href="{{ url_for('view_database') }}">
+                <span class="material-symbols-outlined text-base">storage</span> DB
+            </a>
+            <a class="flex items-center gap-1 font-display text-[10px] font-bold uppercase transition-colors {% if active_page == 'reports' %}text-yale-blue border-b-2 border-yale-blue pb-1{% else %}text-black/60 hover:text-yale-blue{% endif %}"
                 href="{{ url_for('reports_page') }}">
-                <span class="material-symbols-outlined text-lg">assessment</span> Reports
+                <span class="material-symbols-outlined text-base">assessment</span> Reports
             </a>
         </nav>
     </div>

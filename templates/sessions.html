@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session History - AI Classroom</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;1,9..40,400&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        .sessions-panel {
+            overflow: hidden;
+        }
+
+        .sessions-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .sessions-table th {
+            background: rgba(0, 0, 0, 0.22);
+            border-bottom: 1px solid rgba(245, 158, 11, 0.12);
+            padding: 12px 18px;
+            text-align: left;
+            font-family: var(--font-heading);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--clr-text-muted);
+        }
+
+        .sessions-table td {
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(245, 158, 11, 0.06);
+            color: var(--clr-text-secondary);
+        }
+
+        .sessions-table tr:hover td {
+            background: rgba(255, 255, 255, 0.025);
+        }
+
+        .session-id-badge {
+            color: var(--clr-amber);
+            font-weight: 700;
+            font-family: var(--font-heading);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+
+    <div class="app-wrapper">
+        <!-- Top Navigation -->
+        {% include 'partials/topbar.html' %}
+
+        <div class="app-layout">
+            <!-- Sidebar -->
+            {% include 'partials/sidebar.html' %}
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <div class="page-body">
+                    <div class="sec-title">📋 Class Records</div>
+
+                    <header style="margin-bottom: 20px;">
+                        <h1 style="font-family: var(--font-heading); font-size: 24px;">Session History</h1>
+                        <p style="font-size: 13px; color: var(--clr-text-muted);">Audit log of all AI monitoring
+                            sessions</p>
+                    </header>
+
+                    <div class="panel sessions-panel">
+                        <div class="panel-hd">
+                            <div class="panel-title">🗄 Logged Sessions</div>
+                            <div class="count-pill">{{ sessions|length }} entries</div>
+                        </div>
+                        <div class="panel-body" style="padding: 0;">
+                            {% if sessions %}
+                            <table class="sessions-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Date</th>
+                                        <th>Start Time</th>
+                                        <th>End Time</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for s in sessions %}
+                                    <tr>
+                                        <td class="session-id-badge">#{{ s.session_id }}</td>
+                                        <td>{{ s.date }}</td>
+                                        <td>{{ s.start_time }}</td>
+                                        <td>{{ s.end_time if s.end_time else '--:--:--' }}</td>
+                                        <td>
+                                            {% if s.active %}
+                                            <span class="live-badge"><span class="live-dot"></span> Active Now</span>
+                                            {% else %}
+                                            <span
+                                                style="font-size: 10px; color: var(--clr-text-muted); background: rgba(255,255,255,0.05); padding: 2px 10px; border-radius: 20px;">Terminal</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            {% else %}
+                            <div style="padding: 60px; text-align: center;">
+                                <div style="font-size: 40px; margin-bottom: 10px;">📋</div>
+                                <h3>No History Found</h3>
+                                <p style="color: var(--clr-text-muted); font-size: 13px;">Start your first session to
+                                    see logs here.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

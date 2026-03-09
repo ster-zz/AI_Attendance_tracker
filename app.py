@@ -1,9 +1,15 @@
-from flask import Flask, render_template, request, redirect, flash, url_for
+from flask import Flask, render_template, request, redirect, flash, url_for, Response
 from werkzeug.utils import secure_filename
 import os
 from config import SECRET_KEY, DEBUG
-from database import init_db, create_session, end_session, get_active_session, is_session_active, auto_recover_sessions, sync_students_from_images, create_historical_session
-from models.face_recognition_module import encode_known_faces, start_face_recognition, process_uploaded_video_thread
+from database import (
+    init_db, create_session, end_session, get_active_session, is_session_active, 
+    auto_recover_sessions, sync_students_from_images, create_historical_session,
+    get_all_students, get_all_sessions, get_all_attendance, get_recent_incidents
+)
+from models.face_recognition_module import (
+    encode_known_faces, start_face_recognition, process_uploaded_video_thread, gen_frames
+)
 from datetime import datetime
 import threading
 
@@ -28,7 +34,7 @@ with app.app_context():
     # 3. Auto-sync students from the data/student_images/ folder
     sync_students_from_images()
     
-    # 4. Pre-load Face Encodings (Encode images in data/student_images automatically to data/encodings.pkl)
+    # 4. Pre-load Face Encodings
     encode_known_faces()
     print("Session recovery and face encoding complete. System ready.")
 
@@ -53,7 +59,6 @@ def get_duration(start_time_str):
     except Exception:
         return "Unknown"
 
-# ----------------- ROUTES -----------------
 def get_dashboard_context(active_page='dashboard'):
     """
     Helper function to gather all database context needed to render index.html
@@ -76,7 +81,7 @@ def get_dashboard_context(active_page='dashboard'):
     recent_activity = get_recent_activity(limit=4)
     daily_attendance = get_daily_attendance_log()
     
-    return {
+    context = {
         "session": session_data,
         "kpis": kpis,
         "recent_activity": recent_activity,
@@ -84,19 +89,50 @@ def get_dashboard_context(active_page='dashboard'):
         "active_page": active_page
     }
 
+    # Add extra context for specific pages if needed
+    if active_page == 'database':
+        context['students'] = get_all_students()
+        context['attendance'] = get_all_attendance()
+    elif active_page == 'incidents':
+        context['incidents'] = get_recent_incidents(limit=50)
+    elif active_page == 'students':
+        context['students'] = get_all_students()
+    elif active_page == 'sessions':
+        context['sessions'] = get_all_sessions()
+    elif active_page == 'reports':
+        from database import get_session_attendance_report
+        session_id = request.args.get('session_id', type=int)
+        all_sessions = get_all_sessions()
+        context['all_sessions'] = all_sessions
+        
+        if session_id:
+            # Find the specific session info
+            selected_session = next((s for s in all_sessions if s['session_id'] == session_id), None)
+            if selected_session:
+                report = get_session_attendance_report(session_id)
+                present = sum(1 for r in report if r['status'] == 'Present')
+                absent = len(report) - present
+                
+                context['selected_session'] = selected_session
+                context['report'] = report
+                context['stats'] = {
+                    'present': present,
+                    'absent': absent,
+                    'total': len(report),
+                    'present_percent': int((present / len(report) * 100)) if len(report) > 0 else 0,
+                    'absent_percent': int((absent / len(report) * 100)) if len(report) > 0 else 0
+                }
+
+    return context
+
+# ----------------- ROUTES -----------------
 @app.route('/')
 def index():
-    """
-    Home route.
-    """
     context = get_dashboard_context(active_page='dashboard')
     return render_template('index.html', **context)
 
 @app.route('/start_session', methods=['POST'])
 def handle_start_session():
-    """
-    Validates and starts a session. Uses Flash messages.
-    """
     if is_session_active():
         flash('An active session is already running. Please end it first.', 'error')
         return redirect(url_for('index'))
@@ -110,18 +146,13 @@ def handle_start_session():
     if session_id:
         flash(f'Session {session_id} started successfully at {start_time_str}.', 'success')
     else:
-        # Failsafe error
-        flash('Failed to start session. Database constraint blocked creation.', 'error')
+        flash('Failed to start session.', 'error')
         
     return redirect(url_for('index'))
 
 @app.route('/end_session', methods=['POST'])
 def handle_end_session():
-    """
-    Validates and ends the current active session.
-    """
     active_session_row = get_active_session()
-    
     if not active_session_row:
         flash('No active session found to end.', 'error')
         return redirect(url_for('index'))
@@ -129,9 +160,7 @@ def handle_end_session():
     session_id = active_session_row['session_id']
     end_time_str = datetime.now().strftime('%H:%M:%S')
     
-    success = end_session(session_id, end_time_str)
-    
-    if success:
+    if end_session(session_id, end_time_str):
         flash(f'Session {session_id} ended safely.', 'success')
     else:
         flash('Error encountered while ending the session.', 'error')
@@ -140,28 +169,25 @@ def handle_end_session():
 
 @app.route('/start_recognition', methods=['POST'])
 def start_recognition_api():
-    """
-    Triggers the live face recognition module.
-    Only allows starting if a session is currently active.
-    """
     if not is_session_active():
         flash('Face recognition can only be started when a session is active.', 'warning')
         return redirect(url_for('index'))
     
-    # We must run OpenCV loops in a separate thread so it doesn't block Flask from serving the website
     recognition_thread = threading.Thread(target=start_face_recognition)
-    recognition_thread.daemon = True # Allows thread to close when main script exits
+    recognition_thread.daemon = True
     recognition_thread.start()
     
-    flash('Live Face Recognition started successfully. Open OpenCV window to monitor.', 'success')
+    flash('Live Face Recognition started successfully.', 'success')
     return redirect(url_for('index'))
+
+@app.route('/video_feed')
+def video_feed():
+    """Video streaming route. Put this in the src attribute of an img tag."""
+    return Response(gen_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/handle_video_upload', methods=['POST'])
 def handle_video_upload():
-    """
-    Handles class recording uploads securely, creates a historical session,
-    and spins up a background thread to process the video so the server doesn't freeze.
-    """
     if 'video' not in request.files:
         flash('No video file selected', 'error')
         return redirect(url_for('video_upload_page'))
@@ -177,28 +203,20 @@ def handle_video_upload():
     
     if file:
         filename = secure_filename(file.filename)
-        # Add timestamp to prevent overwriting
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        save_name = f"{timestamp}_{filename}"
+        save_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], save_name)
         
         try:
             file.save(filepath)
-            
-            # Create a DB historical session
             session_id = create_historical_session(date_str, start_time_str, subject=subject_str)
             
-            # Start background processing thread
-            processor_thread = threading.Thread(
-                target=process_uploaded_video_thread, 
-                args=(filepath, session_id)
-            )
+            processor_thread = threading.Thread(target=process_uploaded_video_thread, args=(filepath, session_id))
             processor_thread.daemon = True
             processor_thread.start()
             
-            flash('Video uploaded successfully! The AI is now processing the attendance in the background.', 'success')
+            flash('Video uploaded successfully! The AI is processing it in the background.', 'success')
         except Exception as e:
-            flash(f'Error saving or processing file: {e}', 'error')
+            flash(f'Error: {e}', 'error')
             
     return redirect(url_for('video_upload_page'))
 
@@ -217,6 +235,21 @@ def student_directory_page():
     context = get_dashboard_context(active_page='students')
     return render_template('index.html', **context)
 
+@app.route('/sessions')
+def view_sessions():
+    context = get_dashboard_context(active_page='sessions')
+    return render_template('index.html', **context)
+
+@app.route('/incidents')
+def view_incidents():
+    context = get_dashboard_context(active_page='incidents')
+    return render_template('index.html', **context)
+
+@app.route('/database')
+def view_database():
+    context = get_dashboard_context(active_page='database')
+    return render_template('index.html', **context)
+
 @app.route('/reports')
 def reports_page():
     context = get_dashboard_context(active_page='reports')
@@ -226,6 +259,14 @@ def reports_page():
 def settings_page():
     context = get_dashboard_context(active_page='settings')
     return render_template('index.html', **context)
+
+@app.route('/sync_database', methods=['POST'])
+def sync_database():
+    """Manually triggers a sync of the student_images folder to the database."""
+    sync_students_from_images()
+    encode_known_faces()
+    flash('Database and Encodings synced successfully with /data/student_images/', 'success')
+    return redirect(request.referrer or url_for('index'))
 
 if __name__ == '__main__':
     app.run(debug=DEBUG)

@@ -26,9 +26,11 @@ except ImportError:
 
 # ── Per-student incident cooldowns ───────────────────────────────────────────
 _id_incident_cooldown = {}      # {student_name: datetime_of_last_incident}
+_id_missing_start_time = {}     # {student_name: datetime_when_id_first_went_missing}
 _sleep_incident_cooldown = {}   # {student_name: datetime_of_last_incident}
 _student_compliance_status = {}  # {student_name: {'id': bool, 'sleep': bool}}
 ID_INCIDENT_COOLDOWN_SECONDS = 60
+ID_MISSING_DELAY_SECONDS = 10     # Require 10 continuous seconds of missing ID before logging
 SLEEP_INCIDENT_COOLDOWN_SECONDS = 120 # Log sleeping less frequently
 
 # Paths
@@ -185,19 +187,33 @@ def process_ai_frame():
         time.sleep(0.1)
 
 def _check_id_card(frame, student_name, face_bbox):
-    global _id_incident_cooldown
+    global _id_incident_cooldown, _id_missing_start_time
     if face_bbox is None: return
     now = datetime.now()
-    if student_name in _id_incident_cooldown:
-        if (now - _id_incident_cooldown[student_name]).total_seconds() < ID_INCIDENT_COOLDOWN_SECONDS:
-            return
-    if not detect_id_card(frame, face_bbox):
-        _do_log_incident(frame, student_name, 'no_id_card')
-        _id_incident_cooldown[student_name] = now
-        _student_compliance_status.setdefault(student_name, {})['id'] = False
-    else:
-        _id_incident_cooldown.pop(student_name, None)
+    
+    # Always detect to keep the UI perfectly synced in real-time
+    has_id = detect_id_card(frame, face_bbox)
+    
+    if has_id:
         _student_compliance_status.setdefault(student_name, {})['id'] = True
+        # If they fix it, clear their cooldown so they are in good standing
+        _id_incident_cooldown.pop(student_name, None)
+        # Reset the missing timer since they put the ID back on
+        _id_missing_start_time.pop(student_name, None)
+    else:
+        _student_compliance_status.setdefault(student_name, {})['id'] = False
+        
+        # Start the missing timer if it hasn't started yet
+        if student_name not in _id_missing_start_time:
+            _id_missing_start_time[student_name] = now
+            
+        # Check if they have been continuously missing the ID for the required delay (10 seconds)
+        time_missing = (now - _id_missing_start_time[student_name]).total_seconds()
+        if time_missing >= ID_MISSING_DELAY_SECONDS:
+            # Only log the incident file if they aren't on cooldown
+            if student_name not in _id_incident_cooldown or (now - _id_incident_cooldown[student_name]).total_seconds() >= ID_INCIDENT_COOLDOWN_SECONDS:
+                _do_log_incident(frame, student_name, 'no_id_card')
+                _id_incident_cooldown[student_name] = now
 
 def _check_for_sleep(frame, student_name, face_bbox):
     global _sleep_incident_cooldown
@@ -285,60 +301,112 @@ def start_face_recognition():
         latest_processed_frame = None
 
 def process_uploaded_video_thread(filepath, session_id):
-    """Processes an uploaded video for attendance."""
+    """Processes an uploaded video for attendance visually and plays it on dashboard."""
     from database import mark_attendance_for_session, finalize_session
-    global known_face_encodings_global, known_face_names_global
+    global known_face_encodings_global, known_face_names_global, latest_processed_frame, frame_lock
+    
     if not known_face_encodings_global:
         known_face_encodings_global, known_face_names_global = load_encodings()
     if not known_face_encodings_global:
-        if os.path.exists(filepath): os.remove(filepath); return
+        if os.path.exists(filepath): os.remove(filepath)
+        return
 
     cap = cv2.VideoCapture(filepath)
     if not cap.isOpened():
-        if os.path.exists(filepath): os.remove(filepath); return
+        if os.path.exists(filepath): os.remove(filepath)
+        return
     
-    # Calculate video duration for accurate session logging
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    duration_seconds = total_frames / fps
+    duration_seconds = max(1, total_frames / max(1, fps))
     
-    # Analyze one frame every 3 seconds of video time
-    skip_interval_seconds = 3
-    skip_frames = int(fps * skip_interval_seconds)
+    # Process at approximately 10 FPS for high-quality updates
+    skip_interval = max(1, int(fps / 10)) 
     count = 0
     
-    print(f"Analyzing uploaded video for Session {session_id} ({int(duration_seconds)}s duration)...")
+    last_names = []
+    last_locs = []
+    
+    print(f"Visualizing uploaded video for Session {session_id} ({int(duration_seconds)}s duration)...")
     
     while True:
         ret, frame = cap.read()
         if not ret: break
         count += 1
-        if count % skip_frames != 0: continue
         
-        small = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        locs = []
-        if face_detector:
-            res = face_detector(small, verbose=False)
-            for box in res[0].boxes.xyxy:
-                x1, y1, x2, y2 = box.tolist()
-                locs.append((int(y1*2), int(x2*2), int(y2*2), int(x1*2)))
+        display_frame = frame.copy()
         
-        if locs:
-            encs = face_recognition.face_encodings(rgb, locs, num_jitters=1)
-            for enc in encs:
-                matches = face_recognition.compare_faces(known_face_encodings_global, enc, tolerance=0.55)
-                dists = face_recognition.face_distance(known_face_encodings_global, enc)
-                if len(dists) > 0:
-                    idx = np.argmin(dists)
-                    if matches[idx]:
-                        # Mark attendance with the 3s increment matching our skip interval
-                        mark_attendance_for_session(known_face_names_global[idx], session_id, increment=skip_interval_seconds)
-    
+        # Heavy recognition ~10 times per second
+        if count % skip_interval == 0:
+            small = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            locs = []
+            if face_detector:
+                res = face_detector(small, verbose=False)
+                for box in res[0].boxes.xyxy:
+                    x1, y1, x2, y2 = box.tolist()
+                    locs.append((int(y1*2), int(x2*2), int(y2*2), int(x1*2)))
+            
+            if locs:
+                encs = face_recognition.face_encodings(rgb, locs, num_jitters=1)
+                temp_names = []
+                for enc in encs:
+                    matches = face_recognition.compare_faces(known_face_encodings_global, enc, tolerance=0.55)
+                    name = "Unknown"
+                    dists = face_recognition.face_distance(known_face_encodings_global, enc)
+                    if len(dists) > 0:
+                        idx = np.argmin(dists)
+                        if matches[idx]:
+                            name = known_face_names_global[idx]
+                            # Mark attendance proportionally
+                            mark_attendance_for_session(name, session_id, increment=(skip_interval/fps))
+                    temp_names.append(name)
+                
+                last_locs = locs
+                last_names = temp_names
+            else:
+                last_locs = []
+                last_names = []
+                
+            # Perform compliance checks for recognized individuals
+            for i, name in enumerate(last_names):
+                if name != "Unknown" and i < len(last_locs):
+                    face_bbox = last_locs[i]
+                    _check_id_card(frame, name, face_bbox)
+                    _check_for_sleep(frame, name, face_bbox)
+            
+        # Draw annotations using last known details
+        for (t, r, b, l), name in zip(last_locs, last_names):
+            status = _student_compliance_status.get(name, {'id': True, 'sleep': False})
+            color = (0, 255, 0)
+            label = name
+            if status.get('sleep'):
+                color = (0, 0, 255)
+                label = f"{name} | SLEEPING"
+            elif not status.get('id'):
+                color = (0, 165, 255)
+                label = f"{name} | NO ID"
+            cv2.rectangle(display_frame, (l, t), (r, b), color, 2)
+            cv2.rectangle(display_frame, (l, b - 20), (r, b), color, cv2.FILLED)
+            cv2.putText(display_frame, label, (l + 5, b - 5), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255), 1)
+        
+        # Publish frame instantly to exactly mirror live webcam performance
+        with frame_lock:
+            latest_processed_frame = display_frame
+            
+        # Optional sleep to roughly play it back at 2x normal speed on the dashboard 
+        time.sleep(1 / (fps * 2))
+        
     cap.release()
-    
-    # Update the session with an accurate end time based on the video duration
-    # This ensures 75% attendance logic works correctly for historical sessions
+    with frame_lock:
+        # Give a blank black screen indicating ending.
+        placeholder = np.zeros((480, 640, 3), dtype=np.uint8)
+        cv2.putText(placeholder, "Video Processing Complete.", (80, 240), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        latest_processed_frame = placeholder
+        time.sleep(3) # Hold it so the user knows it finished before unsetting
+        latest_processed_frame = None
+        
+    # Finalize the session properly so the 75% logic can execute. 
     from datetime import timedelta
     try:
         from database import get_db_connection
@@ -353,4 +421,4 @@ def process_uploaded_video_thread(filepath, session_id):
         print(f"Error finalizing session: {e}")
 
     if os.path.exists(filepath): os.remove(filepath)
-    print(f"Analysis complete for Session {session_id}.")
+    print(f"Analysis complete for Uploaded Session {session_id}.")

@@ -214,7 +214,9 @@ def handle_video_upload():
             processor_thread.daemon = True
             processor_thread.start()
             
-            flash('Video uploaded successfully! The AI is processing it in the background.', 'success')
+            flash('Video uploaded successfully! The AI is now analyzing it live on the dashboard.', 'success')
+            # Redirect to the main dashboard so they can watch the video processing live
+            return redirect(url_for('index'))
         except Exception as e:
             flash(f'Error: {e}', 'error')
             

@@ -59,15 +59,62 @@ def detect_id_card(frame: np.ndarray, face_bbox: tuple) -> bool:
 
 def _detect_with_yolo(frame: np.ndarray, face_bbox: tuple) -> bool:
     """
-    Uses the custom-trained YOLOv8 model to detect ID cards in the full frame.
-    Returns True if any 'id_card' class bounding box is found.
+    Uses the custom-trained YOLOv8 model to detect ID cards.
+    Rule 1: If an object labeled 'id-card' AND 'tag' are both found under/near the face, return True.
+    Rule 2: If only one is found under/near the face, it must have a confidence >= 50% (0.50).
     """
-    results = _custom_model(frame, verbose=False)
+    # Extract bounding box to assign IDs to the specific student
+    top, right, bottom, left = face_bbox
+    face_centerX = (left + right) / 2
+    face_centerY = (top + bottom) / 2
+    face_width = right - left
+    
+    # Use a low base confidence to allow checking low-confidence matches for Rule 1
+    results = _custom_model(frame, conf=0.1, verbose=False)
+    
+    found_id_card = False
+    found_tag = False
+    high_conf_found = False
+
     for box in results[0].boxes:
+        # Prevent stealing IDs from a neighboring student
+        x1, y1, x2, y2 = box.xyxy[0].tolist()
+        box_centerX = (x1 + x2) / 2
+        box_centerY = (y1 + y2) / 2
+        
+        # 1. The ID/Tag must physically be located below the center of the student's face
+        if box_centerY < face_centerY:
+            continue
+            
+        # 2. The ID/Tag must be horizontally aligned with the student's body
+        # (Allows 1.5x face width margin for skewed sitting or tilted lanyards)
+        if abs(box_centerX - face_centerX) > face_width * 1.5:
+            continue
+
+        conf = float(box.conf[0])
         class_id = int(box.cls[0])
         label = _custom_model.names[class_id].lower()
-        if 'id' in label or 'card' in label or 'badge' in label:
-            return True
+        
+        # Check if this box is an 'id-card'
+        if 'id' in label or 'card' in label:
+            found_id_card = True
+            if conf >= 0.50:
+                high_conf_found = True
+                
+        # Check if this box is a 'tag'
+        elif 'tag' in label:
+            found_tag = True
+            if conf >= 0.50:
+                high_conf_found = True
+
+    # Check Rule 1: Both found
+    if found_id_card and found_tag:
+        return True
+        
+    # Check Rule 2: At least one found with >= 50% confidence
+    if high_conf_found:
+        return True
+        
     return False
 
 

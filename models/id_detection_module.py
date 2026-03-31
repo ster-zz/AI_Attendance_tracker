@@ -57,20 +57,30 @@ def detect_id_card(frame: np.ndarray, face_bbox: tuple) -> bool:
         return _detect_with_contours(frame, top, right, bottom, left, face_height)
 
 
+_last_yolo_frame_id = None
+_last_yolo_results = None
+
 def _detect_with_yolo(frame: np.ndarray, face_bbox: tuple) -> bool:
     """
     Uses the custom-trained YOLOv8 model to detect ID cards.
     Rule 1: If an object labeled 'id-card' AND 'tag' are both found under/near the face, return True.
     Rule 2: If only one is found under/near the face, it must have a confidence >= 50% (0.50).
     """
+    global _last_yolo_frame_id, _last_yolo_results
+    
     # Extract bounding box to assign IDs to the specific student
     top, right, bottom, left = face_bbox
     face_centerX = (left + right) / 2
     face_centerY = (top + bottom) / 2
     face_width = right - left
     
-    # Use a low base confidence to allow checking low-confidence matches for Rule 1
-    results = _custom_model(frame, conf=0.1, verbose=False)
+    # O(1) Performance Cache: Only run raw YOLOv8 inference ONCE per video frame, 
+    # even if there are N students being checked in that single frame.
+    if id(frame) != _last_yolo_frame_id:
+        _last_yolo_results = _custom_model(frame, conf=0.1, verbose=False)
+        _last_yolo_frame_id = id(frame)
+        
+    results = _last_yolo_results
     
     found_id_card = False
     found_tag = False

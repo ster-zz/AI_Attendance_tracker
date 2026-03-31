@@ -52,6 +52,9 @@ def calculate_ear(landmarks, v1, v2, v3, v4, h1, h2):
     ear = (v_dist1 + v_dist2) / (2.0 * h_dist)
     return ear
 
+_last_mesh_frame_id = None
+_last_mesh_results = None
+
 def check_sleep(frame, face_bbox_recognition, student_name, current_time=None):
     """
     Checks if the student is sleeping based on EAR.
@@ -65,10 +68,16 @@ def check_sleep(frame, face_bbox_recognition, student_name, current_time=None):
     Returns:
         is_sleeping (bool): True if student has been closed-eyed for > threshold.
     """
-    global _sleep_states
+    global _sleep_states, _last_mesh_frame_id, _last_mesh_results
     
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = face_mesh.process(rgb_frame)
+    # O(1) Performance Cache: Only run heavy MediaPipe face meshing ONCE per 
+    # video frame, even if there are N students being checked in that frame.
+    if id(frame) != _last_mesh_frame_id:
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        _last_mesh_results = face_mesh.process(rgb_frame)
+        _last_mesh_frame_id = id(frame)
+        
+    results = _last_mesh_results
     
     if not results.multi_face_landmarks:
         return False

@@ -186,10 +186,10 @@ def process_ai_frame():
         # Small sleep ensures 5-10 checks per second for very high accuracy
         time.sleep(0.1)
 
-def _check_id_card(frame, student_name, face_bbox):
+def _check_id_card(frame, student_name, face_bbox, current_time=None):
     global _id_incident_cooldown, _id_missing_start_time
     if face_bbox is None: return
-    now = datetime.now()
+    now = current_time if current_time is not None else datetime.now()
     
     # Always detect to keep the UI perfectly synced in real-time
     has_id = detect_id_card(frame, face_bbox)
@@ -215,17 +215,20 @@ def _check_id_card(frame, student_name, face_bbox):
                 _do_log_incident(frame, student_name, 'no_id_card')
                 _id_incident_cooldown[student_name] = now
 
-def _check_for_sleep(frame, student_name, face_bbox):
+def _check_for_sleep(frame, student_name, face_bbox, current_time_dt=None, current_time_ts=None):
     global _sleep_incident_cooldown
     if face_bbox is None: return
-    now = datetime.now()
-    if student_name in _sleep_incident_cooldown:
-        if (now - _sleep_incident_cooldown[student_name]).total_seconds() < SLEEP_INCIDENT_COOLDOWN_SECONDS:
-            return
-    if check_sleep(frame, face_bbox, student_name):
-        _do_log_incident(frame, student_name, 'sleeping')
-        _sleep_incident_cooldown[student_name] = now
+    now = current_time_dt if current_time_dt is not None else datetime.now()
+    
+    # Always detect to keep the UI perfectly synced in real-time
+    is_sleeping = check_sleep(frame, face_bbox, student_name, current_time=current_time_ts)
+    
+    if is_sleeping:
         _student_compliance_status.setdefault(student_name, {})['sleep'] = True
+        # Only log the incident file if they aren't on cooldown
+        if student_name not in _sleep_incident_cooldown or (now - _sleep_incident_cooldown[student_name]).total_seconds() >= SLEEP_INCIDENT_COOLDOWN_SECONDS:
+            _do_log_incident(frame, student_name, 'sleeping')
+            _sleep_incident_cooldown[student_name] = now
     else:
         _student_compliance_status.setdefault(student_name, {})['sleep'] = False
 
@@ -368,12 +371,16 @@ def process_uploaded_video_thread(filepath, session_id):
                 last_locs = []
                 last_names = []
                 
-            # Perform compliance checks for recognized individuals
+            # Perform compliance checks for recognized individuals using synthetic video timeline
+            from datetime import timedelta
+            simulated_now_dt = datetime.now() + timedelta(seconds=count/max(1, fps))
+            simulated_now_ts = simulated_now_dt.timestamp()
+
             for i, name in enumerate(last_names):
                 if name != "Unknown" and i < len(last_locs):
                     face_bbox = last_locs[i]
-                    _check_id_card(frame, name, face_bbox)
-                    _check_for_sleep(frame, name, face_bbox)
+                    _check_id_card(frame, name, face_bbox, current_time=simulated_now_dt)
+                    _check_for_sleep(frame, name, face_bbox, current_time_dt=simulated_now_dt, current_time_ts=simulated_now_ts)
             
         # Draw annotations using last known details
         for (t, r, b, l), name in zip(last_locs, last_names):

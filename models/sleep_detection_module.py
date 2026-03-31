@@ -52,7 +52,7 @@ def calculate_ear(landmarks, v1, v2, v3, v4, h1, h2):
     ear = (v_dist1 + v_dist2) / (2.0 * h_dist)
     return ear
 
-def check_sleep(frame, face_bbox_recognition, student_name):
+def check_sleep(frame, face_bbox_recognition, student_name, current_time=None):
     """
     Checks if the student is sleeping based on EAR.
     
@@ -60,6 +60,7 @@ def check_sleep(frame, face_bbox_recognition, student_name):
         frame: The full BGR frame.
         face_bbox_recognition: (top, right, bottom, left) from face_recognition.
         student_name: Name of the identified student.
+        current_time: Simulated timeline timestamp for video parsing.
         
     Returns:
         is_sleeping (bool): True if student has been closed-eyed for > threshold.
@@ -102,7 +103,7 @@ def check_sleep(frame, face_bbox_recognition, student_name):
     avg_ear = (left_ear + right_ear) / 2.0
     
     # Logic for sleep tracking
-    now = time.time()
+    now = current_time if current_time is not None else time.time()
     if student_name not in _sleep_states:
         _sleep_states[student_name] = {'start_time': None, 'is_sleeping': False}
 

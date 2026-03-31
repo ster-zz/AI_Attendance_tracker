@@ -173,7 +173,7 @@ def process_ai_frame():
             latest_face_locations, latest_face_names = temp_locs, temp_names
             last_recognition_time = now
 
-        # 2. ⚡ FAST PATH: COMPLIANCE (Every 0.2 seconds)
+        # 2. ⚡ FAST PATH: COMPLIANCE (Every 0.5 seconds)
         # Monitors SLEEP and ID status for recognized students at high frequency.
         for i, name in enumerate(latest_face_names):
             if name != "Unknown" and i < len(latest_face_locations):
@@ -183,8 +183,9 @@ def process_ai_frame():
                 _check_for_sleep(frame_to_process, name, face_bbox)
         
         ai_is_processing = False
-        # Small sleep ensures 5-10 checks per second for very high accuracy
-        time.sleep(0.1)
+        # Medium sleep ensures 2 checks per second (2 FPS) which completely 
+        # eliminates any lag while remaining extremely responsive.
+        time.sleep(0.5)
 
 def _check_id_card(frame, student_name, face_bbox, current_time=None):
     global _id_incident_cooldown, _id_missing_start_time
@@ -323,8 +324,8 @@ def process_uploaded_video_thread(filepath, session_id):
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     duration_seconds = max(1, total_frames / max(1, fps))
     
-    # Process at approximately 10 FPS for high-quality updates
-    skip_interval = max(1, int(fps / 10)) 
+    # Process at 1 Frame Per Second (1 FPS) for optimal balance of AI speed and visual smoothness
+    skip_interval = max(1, int(fps)) 
     count = 0
     
     last_names = []
@@ -339,7 +340,7 @@ def process_uploaded_video_thread(filepath, session_id):
         
         display_frame = frame.copy()
         
-        # Heavy recognition ~10 times per second
+        # Heavy recognition 1 time per video-second
         if count % skip_interval == 0:
             small = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

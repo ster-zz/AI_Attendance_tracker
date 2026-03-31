@@ -147,6 +147,9 @@ def process_ai_frame():
         # 1. 🐢 SLOW PATH: IDENTIFICATION (Every 2 seconds)
         # Identifies WHO is in the frame.
         if now - last_recognition_time >= 2.0:
+            # Calculate exactly how much real-time has passed to prevent UI percentage bleed
+            delta_time = now - last_recognition_time if last_recognition_time > 0 else 2.0
+            
             small_frame = cv2.resize(frame_to_process, (0, 0), fx=0.5, fy=0.5)
             rgb_full = cv2.cvtColor(frame_to_process, cv2.COLOR_BGR2RGB)
             
@@ -167,7 +170,11 @@ def process_ai_frame():
                     idx = np.argmin(dists)
                     if matches[idx]:
                         name = known_face_names_global[idx]
-                        mark_attendance(name)
+                        if not is_session_active(): pass
+                        else:
+                            from database import mark_attendance_for_session
+                            sess_id = get_current_session_id()
+                            if sess_id: mark_attendance_for_session(name, sess_id, increment=delta_time)
                 temp_names.append(name)
             
             latest_face_locations, latest_face_names = temp_locs, temp_names

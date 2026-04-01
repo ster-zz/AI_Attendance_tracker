@@ -28,10 +28,12 @@ except ImportError:
 _id_incident_cooldown = {}      # {student_name: datetime_of_last_incident}
 _id_missing_start_time = {}     # {student_name: datetime_when_id_first_went_missing}
 _sleep_incident_cooldown = {}   # {student_name: datetime_of_last_incident}
+_sleep_onset_start_time = {}    # {student_name: datetime_when_sleep_started}
 _student_compliance_status = {}  # {student_name: {'id': bool, 'sleep': bool}}
 ID_INCIDENT_COOLDOWN_SECONDS = 60
 ID_MISSING_DELAY_SECONDS = 10     # Require 10 continuous seconds of missing ID before logging
 SLEEP_INCIDENT_COOLDOWN_SECONDS = 120 # Log sleeping less frequently
+SLEEP_REPORTING_DELAY_SECONDS = 15 # Require 15 continuous seconds of sleeping before logging
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -227,7 +229,7 @@ def _check_id_card(frame, student_name, face_bbox, current_time=None):
                 _id_incident_cooldown[student_name] = now
 
 def _check_for_sleep(frame, student_name, face_bbox, current_time_dt=None, current_time_ts=None):
-    global _sleep_incident_cooldown
+    global _sleep_incident_cooldown, _sleep_onset_start_time
     if face_bbox is None: return
     now = current_time_dt if current_time_dt is not None else datetime.now()
     
@@ -236,12 +238,21 @@ def _check_for_sleep(frame, student_name, face_bbox, current_time_dt=None, curre
     
     if is_sleeping:
         _student_compliance_status.setdefault(student_name, {})['sleep'] = True
-        # Only log the incident file if they aren't on cooldown
-        if student_name not in _sleep_incident_cooldown or (now - _sleep_incident_cooldown[student_name]).total_seconds() >= SLEEP_INCIDENT_COOLDOWN_SECONDS:
-            _do_log_incident(frame, student_name, 'sleeping')
-            _sleep_incident_cooldown[student_name] = now
+        
+        # Start persistent sleep timer
+        if student_name not in _sleep_onset_start_time:
+            _sleep_onset_start_time[student_name] = now
+            
+        time_sleeping = (now - _sleep_onset_start_time[student_name]).total_seconds()
+        
+        if time_sleeping >= SLEEP_REPORTING_DELAY_SECONDS:
+            # Only log the incident file if they aren't on cooldown
+            if student_name not in _sleep_incident_cooldown or (now - _sleep_incident_cooldown[student_name]).total_seconds() >= SLEEP_INCIDENT_COOLDOWN_SECONDS:
+                _do_log_incident(frame, student_name, 'sleeping')
+                _sleep_incident_cooldown[student_name] = now
     else:
         _student_compliance_status.setdefault(student_name, {})['sleep'] = False
+        _sleep_onset_start_time.pop(student_name, None)
 
 def _do_log_incident(frame, student_name, incident_type):
     """Internal helper to save image and log to DB."""

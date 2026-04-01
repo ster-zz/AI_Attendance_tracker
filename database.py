@@ -541,8 +541,8 @@ def get_daily_attendance_log():
         
         if s_id in tracked_students:
             record = tracked_students[s_id]
-            # 75% Threshold Logic
-            presence_ratio = record['presence_seconds'] / duration
+            # 75% Threshold Logic - Cap at 100% physically
+            presence_ratio = min(record['presence_seconds'] / duration, 1.0)
             status = "Present" if presence_ratio >= 0.75 else f"Partial ({int(presence_ratio*100)}%)"
             
             attendance_log.append({
@@ -596,7 +596,7 @@ def get_session_attendance_report(session_id):
         
         if s_id in tracked_students:
             record = tracked_students[s_id]
-            presence_ratio = record['presence_seconds'] / duration
+            presence_ratio = min(record['presence_seconds'] / duration, 1.0)
             status = "Present" if presence_ratio >= 0.75 else "Absent"
             
             report.append({

@@ -162,6 +162,8 @@ def process_ai_frame():
             
             temp_encs = face_recognition.face_encodings(rgb_full, temp_locs, num_jitters=1)
             temp_names = []
+            processed_names = set() # Track who we've already marked this exact frame
+            
             for i, enc in enumerate(temp_encs):
                 matches = face_recognition.compare_faces(known_face_encodings_global, enc, tolerance=0.55)
                 name = "Unknown"
@@ -171,10 +173,11 @@ def process_ai_frame():
                     if matches[idx]:
                         name = known_face_names_global[idx]
                         if not is_session_active(): pass
-                        else:
+                        elif name not in processed_names:
                             from database import mark_attendance_for_session
                             sess_id = get_current_session_id()
                             if sess_id: mark_attendance_for_session(name, sess_id, increment=delta_time)
+                            processed_names.add(name)
                 temp_names.append(name)
             
             latest_face_locations, latest_face_names = temp_locs, temp_names

@@ -167,7 +167,7 @@ def process_ai_frame():
             processed_names = set() # Track who we've already marked this exact frame
             
             for i, enc in enumerate(temp_encs):
-                matches = face_recognition.compare_faces(known_face_encodings_global, enc, tolerance=0.45)
+                matches = face_recognition.compare_faces(known_face_encodings_global, enc, tolerance=0.50)
                 name = "Unknown"
                 dists = face_recognition.face_distance(known_face_encodings_global, enc)
                 if len(dists) > 0:
@@ -376,7 +376,7 @@ def process_uploaded_video_thread(filepath, session_id):
                 encs = face_recognition.face_encodings(rgb, locs, num_jitters=1)
                 temp_names = []
                 for enc in encs:
-                    matches = face_recognition.compare_faces(known_face_encodings_global, enc, tolerance=0.45)
+                    matches = face_recognition.compare_faces(known_face_encodings_global, enc, tolerance=0.50)
                     name = "Unknown"
                     dists = face_recognition.face_distance(known_face_encodings_global, enc)
                     if len(dists) > 0:
